@@ -22,7 +22,7 @@ export default function Login({ onLogin, error }: Props) {
       <div className="login-card">
         <div className="login-logo">
           <span className="logo-text">LGL</span>
-          <span className="logo-sub">Ingest Portal</span>
+          <span className="logo-sub">Uplink Portal</span>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">

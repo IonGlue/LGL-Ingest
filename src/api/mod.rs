@@ -28,13 +28,13 @@ pub fn router() -> Router<AppState> {
             patch(users::update_user).delete(users::delete_user),
         )
         // Devices
-        .route(
-            "/api/v1/devices",
-            get(devices::list_devices),
-        )
+        .route("/api/v1/devices", get(devices::list_devices))
         .route("/api/v1/devices/unassigned", get(devices::list_unassigned_devices))
+        .route("/api/v1/devices/pending", get(devices::list_pending_devices))
         .route("/api/v1/devices/{id}", get(devices::get_device).delete(devices::decommission_device))
         .route("/api/v1/devices/{id}/claim-to-org", post(devices::claim_device_to_org))
+        .route("/api/v1/devices/{id}/enroll", post(devices::enroll_device))
+        .route("/api/v1/devices/{id}/reject", post(devices::reject_device))
         // Assignments
         .route(
             "/api/v1/devices/{id}/assignments",

@@ -1,0 +1,138 @@
+import { useState, useEffect } from "react";
+import { api, ApiError, PendingDevice } from "../api";
+
+interface Props {
+  onEnrolled: () => void;
+}
+
+export default function EnrollmentPanel({ onEnrolled }: Props) {
+  const [devices, setDevices] = useState<PendingDevice[]>([]);
+  const [selected, setSelected] = useState<PendingDevice | null>(null);
+  const [codeInput, setCodeInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const data = await api.pendingDevices();
+      setDevices(data.devices);
+    } catch {
+      // not admin / ignore
+    }
+  }
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (devices.length === 0) return null;
+
+  async function handleEnroll() {
+    if (!selected || codeInput.length !== 5) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.enrollDevice(selected.id, codeInput);
+      // Also assign to org automatically
+      await api.claimDeviceToOrg(selected.id).catch(() => {});
+      setSuccess(`${selected.hostname} enrolled successfully.`);
+      setSelected(null);
+      setCodeInput("");
+      load();
+      onEnrolled();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Enrollment failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleReject() {
+    if (!selected) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.rejectDevice(selected.id);
+      setSelected(null);
+      load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Reject failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="enrollment-banner">
+      <div className="enrollment-header">
+        <span className="enrollment-icon">⚡</span>
+        <span className="enrollment-title">
+          {devices.length} encoder{devices.length !== 1 ? "s" : ""} waiting for approval
+        </span>
+      </div>
+
+      <div className="enrollment-list">
+        {devices.map((d) => (
+          <button
+            key={d.id}
+            className={`enrollment-device-btn ${selected?.id === d.id ? "selected" : ""}`}
+            onClick={() => {
+              setSelected(d);
+              setCodeInput("");
+              setError(null);
+              setSuccess(null);
+            }}
+          >
+            <span className="enroll-hostname">{d.hostname}</span>
+            <span className="enroll-meta">{d.version} · {d.device_id.slice(0, 12)}…</span>
+          </button>
+        ))}
+      </div>
+
+      {success && <p className="enrollment-success">{success}</p>}
+
+      {selected && (
+        <div className="enrollment-verify">
+          <p className="verify-instruction">
+            Check the device's HDMI output or terminal and enter the 5-digit code shown:
+          </p>
+          <div className="code-displayed">
+            <span className="code-label">Code on device</span>
+            <span className="code-value">{selected.enrollment_code}</span>
+          </div>
+          <div className="verify-row">
+            <input
+              className="code-input"
+              type="text"
+              maxLength={5}
+              pattern="[0-9]{5}"
+              placeholder="Enter 5-digit code"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 5))}
+              autoFocus
+            />
+            <button
+              className="btn btn-primary"
+              style={{ width: "auto" }}
+              onClick={handleEnroll}
+              disabled={busy || codeInput.length !== 5}
+            >
+              Approve
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={handleReject}
+              disabled={busy}
+            >
+              Reject
+            </button>
+          </div>
+          {error && <p className="login-error" style={{ marginTop: 8 }}>{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
