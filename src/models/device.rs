@@ -39,27 +39,25 @@ impl Device {
     }
 
     pub async fn find_by_id(id: Uuid, db: &PgPool) -> Result<Option<Self>> {
-        Ok(sqlx::query_as!(
-            Device,
+        Ok(sqlx::query_as::<_, Device>(
             "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices WHERE id = $1",
-            id
         )
+        .bind(id)
         .fetch_optional(db)
         .await?)
     }
 
     pub async fn find_by_device_id(device_id: &str, db: &PgPool) -> Result<Option<Self>> {
-        Ok(sqlx::query_as!(
-            Device,
+        Ok(sqlx::query_as::<_, Device>(
             "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices WHERE device_id = $1",
-            device_id
         )
+        .bind(device_id)
         .fetch_optional(db)
         .await?)
     }
@@ -70,8 +68,7 @@ impl Device {
         state_filter: Option<&str>,
         db: &PgPool,
     ) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as!(
-            Device,
+        Ok(sqlx::query_as::<_, Device>(
             "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
@@ -80,8 +77,10 @@ impl Device {
                AND ($2::text IS NULL OR status = $2)
                AND ($3::text IS NULL OR last_state = $3)
              ORDER BY registered_at",
-            org_id, status_filter, state_filter
         )
+        .bind(org_id)
+        .bind(status_filter)
+        .bind(state_filter)
         .fetch_all(db)
         .await?)
     }
@@ -91,8 +90,7 @@ impl Device {
         state_filter: Option<&str>,
         db: &PgPool,
     ) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as!(
-            Device,
+        Ok(sqlx::query_as::<_, Device>(
             "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
@@ -100,19 +98,19 @@ impl Device {
              WHERE ($1::text IS NULL OR status = $1)
                AND ($2::text IS NULL OR last_state = $2)
              ORDER BY registered_at",
-            status_filter, state_filter
         )
+        .bind(status_filter)
+        .bind(state_filter)
         .fetch_all(db)
         .await?)
     }
 
     pub async fn list_unassigned(db: &PgPool) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as!(
-            Device,
+        Ok(sqlx::query_as::<_, Device>(
             "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
-             FROM devices WHERE org_id IS NULL ORDER BY registered_at"
+             FROM devices WHERE org_id IS NULL ORDER BY registered_at",
         )
         .fetch_all(db)
         .await?)
@@ -120,12 +118,11 @@ impl Device {
 
     /// List devices waiting for admin enrollment approval.
     pub async fn list_pending(db: &PgPool) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as!(
-            Device,
+        Ok(sqlx::query_as::<_, Device>(
             "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
-             FROM devices WHERE enrollment_state = 'pending' ORDER BY registered_at"
+             FROM devices WHERE enrollment_state = 'pending' ORDER BY registered_at",
         )
         .fetch_all(db)
         .await?)
@@ -144,8 +141,7 @@ impl Device {
         match existing {
             None => {
                 let code = Self::generate_code();
-                let device = sqlx::query_as!(
-                    Device,
+                let device = sqlx::query_as::<_, Device>(
                     "INSERT INTO devices
                         (device_id, hardware_id, hostname, version, status,
                          last_seen_at, enrollment_state, enrollment_code)
@@ -153,15 +149,18 @@ impl Device {
                      RETURNING id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                                last_state, last_seen_at, registered_at, updated_at,
                                enrollment_state, enrollment_code, enrolled_at, enrolled_by",
-                    device_id, hardware_id, hostname, version, code
                 )
+                .bind(device_id)
+                .bind(hardware_id)
+                .bind(hostname)
+                .bind(version)
+                .bind(code)
                 .fetch_one(db)
                 .await?;
                 Ok((device, true))
             }
             Some(existing) => {
-                let device = sqlx::query_as!(
-                    Device,
+                let device = sqlx::query_as::<_, Device>(
                     "UPDATE devices SET
                         hardware_id = $2,
                         hostname = $3,
@@ -173,8 +172,11 @@ impl Device {
                      RETURNING id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                                last_state, last_seen_at, registered_at, updated_at,
                                enrollment_state, enrollment_code, enrolled_at, enrolled_by",
-                    existing.id, hardware_id, hostname, version
                 )
+                .bind(existing.id)
+                .bind(hardware_id)
+                .bind(hostname)
+                .bind(version)
                 .fetch_one(db)
                 .await?;
                 Ok((device, false))
@@ -184,7 +186,7 @@ impl Device {
 
     /// Admin approves a pending device. Returns Err if code doesn't match.
     pub async fn enroll(id: Uuid, submitted_code: &str, admin_id: Uuid, db: &PgPool) -> Result<bool> {
-        let result = sqlx::query!(
+        let result = sqlx::query(
             "UPDATE devices SET
                 enrollment_state = 'enrolled',
                 enrolled_at = now(),
@@ -193,8 +195,10 @@ impl Device {
              WHERE id = $1
                AND enrollment_state = 'pending'
                AND enrollment_code = $2",
-            id, submitted_code, admin_id
         )
+        .bind(id)
+        .bind(submitted_code)
+        .bind(admin_id)
         .execute(db)
         .await?;
         Ok(result.rows_affected() > 0)
@@ -202,53 +206,56 @@ impl Device {
 
     /// Admin rejects a pending device.
     pub async fn reject(id: Uuid, db: &PgPool) -> Result<bool> {
-        let result = sqlx::query!(
+        let result = sqlx::query(
             "UPDATE devices SET
                 enrollment_state = 'rejected',
                 updated_at = now()
              WHERE id = $1 AND enrollment_state = 'pending'",
-            id
         )
+        .bind(id)
         .execute(db)
         .await?;
         Ok(result.rows_affected() > 0)
     }
 
     pub async fn update_telemetry_state(id: Uuid, state: &str, db: &PgPool) -> Result<()> {
-        sqlx::query!(
+        sqlx::query(
             "UPDATE devices SET last_state = $2, last_seen_at = now(), updated_at = now() WHERE id = $1",
-            id, state
         )
+        .bind(id)
+        .bind(state)
         .execute(db)
         .await?;
         Ok(())
     }
 
     pub async fn set_status(id: Uuid, status: &str, db: &PgPool) -> Result<()> {
-        sqlx::query!(
+        sqlx::query(
             "UPDATE devices SET status = $2, last_seen_at = now(), updated_at = now() WHERE id = $1",
-            id, status
         )
+        .bind(id)
+        .bind(status)
         .execute(db)
         .await?;
         Ok(())
     }
 
     pub async fn assign_to_org(id: Uuid, org_id: Uuid, db: &PgPool) -> Result<bool> {
-        let result = sqlx::query!(
+        let result = sqlx::query(
             "UPDATE devices SET org_id = $2, updated_at = now() WHERE id = $1 AND org_id IS NULL",
-            id, org_id
         )
+        .bind(id)
+        .bind(org_id)
         .execute(db)
         .await?;
         Ok(result.rows_affected() > 0)
     }
 
     pub async fn decommission(id: Uuid, db: &PgPool) -> Result<bool> {
-        let result = sqlx::query!(
+        let result = sqlx::query(
             "UPDATE devices SET org_id = NULL, status = 'offline', updated_at = now() WHERE id = $1",
-            id
         )
+        .bind(id)
         .execute(db)
         .await?;
         Ok(result.rows_affected() > 0)
@@ -256,10 +263,11 @@ impl Device {
 
     /// Set or clear the human-readable nickname for a device.
     pub async fn update_nickname(id: Uuid, nickname: Option<&str>, db: &PgPool) -> Result<bool> {
-        let result = sqlx::query!(
+        let result = sqlx::query(
             "UPDATE devices SET nickname = $2, updated_at = now() WHERE id = $1",
-            id, nickname
         )
+        .bind(id)
+        .bind(nickname)
         .execute(db)
         .await?;
         Ok(result.rows_affected() > 0)
