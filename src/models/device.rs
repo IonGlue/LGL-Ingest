@@ -12,6 +12,7 @@ pub struct Device {
     pub device_id: String,
     pub hardware_id: String,
     pub hostname: String,
+    pub nickname: Option<String>,
     pub version: String,
     pub org_id: Option<Uuid>,
     pub status: String,
@@ -40,7 +41,7 @@ impl Device {
     pub async fn find_by_id(id: Uuid, db: &PgPool) -> Result<Option<Self>> {
         Ok(sqlx::query_as!(
             Device,
-            "SELECT id, device_id, hardware_id, hostname, version, org_id, status,
+            "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices WHERE id = $1",
@@ -53,7 +54,7 @@ impl Device {
     pub async fn find_by_device_id(device_id: &str, db: &PgPool) -> Result<Option<Self>> {
         Ok(sqlx::query_as!(
             Device,
-            "SELECT id, device_id, hardware_id, hostname, version, org_id, status,
+            "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices WHERE device_id = $1",
@@ -71,7 +72,7 @@ impl Device {
     ) -> Result<Vec<Self>> {
         Ok(sqlx::query_as!(
             Device,
-            "SELECT id, device_id, hardware_id, hostname, version, org_id, status,
+            "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices
@@ -92,7 +93,7 @@ impl Device {
     ) -> Result<Vec<Self>> {
         Ok(sqlx::query_as!(
             Device,
-            "SELECT id, device_id, hardware_id, hostname, version, org_id, status,
+            "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices
@@ -108,7 +109,7 @@ impl Device {
     pub async fn list_unassigned(db: &PgPool) -> Result<Vec<Self>> {
         Ok(sqlx::query_as!(
             Device,
-            "SELECT id, device_id, hardware_id, hostname, version, org_id, status,
+            "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices WHERE org_id IS NULL ORDER BY registered_at"
@@ -121,7 +122,7 @@ impl Device {
     pub async fn list_pending(db: &PgPool) -> Result<Vec<Self>> {
         Ok(sqlx::query_as!(
             Device,
-            "SELECT id, device_id, hardware_id, hostname, version, org_id, status,
+            "SELECT id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                     last_state, last_seen_at, registered_at, updated_at,
                     enrollment_state, enrollment_code, enrolled_at, enrolled_by
              FROM devices WHERE enrollment_state = 'pending' ORDER BY registered_at"
@@ -149,7 +150,7 @@ impl Device {
                         (device_id, hardware_id, hostname, version, status,
                          last_seen_at, enrollment_state, enrollment_code)
                      VALUES ($1, $2, $3, $4, 'online', now(), 'pending', $5)
-                     RETURNING id, device_id, hardware_id, hostname, version, org_id, status,
+                     RETURNING id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                                last_state, last_seen_at, registered_at, updated_at,
                                enrollment_state, enrollment_code, enrolled_at, enrolled_by",
                     device_id, hardware_id, hostname, version, code
@@ -169,7 +170,7 @@ impl Device {
                         last_seen_at = now(),
                         updated_at = now()
                      WHERE id = $1
-                     RETURNING id, device_id, hardware_id, hostname, version, org_id, status,
+                     RETURNING id, device_id, hardware_id, hostname, nickname, version, org_id, status,
                                last_state, last_seen_at, registered_at, updated_at,
                                enrollment_state, enrollment_code, enrolled_at, enrolled_by",
                     existing.id, hardware_id, hostname, version
@@ -247,6 +248,17 @@ impl Device {
         let result = sqlx::query!(
             "UPDATE devices SET org_id = NULL, status = 'offline', updated_at = now() WHERE id = $1",
             id
+        )
+        .execute(db)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Set or clear the human-readable nickname for a device.
+    pub async fn update_nickname(id: Uuid, nickname: Option<&str>, db: &PgPool) -> Result<bool> {
+        let result = sqlx::query!(
+            "UPDATE devices SET nickname = $2, updated_at = now() WHERE id = $1",
+            id, nickname
         )
         .execute(db)
         .await?;
