@@ -30,7 +30,7 @@ services:
     # No public port exposure — access is only via the cloudflare tunnel.
     # Expose 8080 locally only during development (remove in production).
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8090:8090"
     environment:
       DATABASE_URL: postgres://uplink:password@postgres:5432/lgl_uplink_portal
       REDIS_URL: redis://redis:6379
@@ -52,7 +52,7 @@ services:
       - ./frontend:/app
     environment:
       # Vite proxies /api/* to this address
-      VITE_API_BASE: http://uplink-portal:8080
+      VITE_API_BASE: http://uplink-portal:8090
     depends_on:
       - uplink-portal
 
@@ -68,7 +68,7 @@ services:
   tunnel:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run
+    command: tunnel --protocol http2 --config /etc/cloudflared/config.yml run
     volumes:
       - ./config/cloudflared:/etc/cloudflared:ro
     depends_on:

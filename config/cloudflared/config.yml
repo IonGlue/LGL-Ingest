@@ -18,7 +18,7 @@ ingress:
   # Cloudflare handles TLS; traffic arrives at Axum as plain WS
   - hostname: uplink-portal.lgl-os.com
     path: /devices
-    service: http://uplink-portal:8080
+    service: http://uplink-portal:8090
     originRequest:
       # Keep WebSocket connections alive through Cloudflare's proxies.
       # The Axum server already pings every 30s, well within this window.
@@ -31,7 +31,7 @@ ingress:
 
   # REST API — portal dashboard
   - hostname: uplink-portal.lgl-os.com
-    service: http://uplink-portal:8080
+    service: http://uplink-portal:8090
 
   # Catch-all (required by cloudflared)
   - service: http_status:404
