@@ -10,7 +10,7 @@
 #
 # The tunnel creates an outbound-only connection — no inbound ports needed.
 
-tunnel: <YOUR_TUNNEL_UUID>
+tunnel: bc61dd0c-8963-444b-8b71-41977968602b
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
