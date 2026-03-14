@@ -1,10 +1,10 @@
 -- Device enrollment workflow
 -- New devices start in 'pending' state and must be approved by an admin
--- who verifies the 5-digit code shown on the device's HDMI output / terminal.
+-- who verifies the 10-character alphanumeric code shown on the device's HDMI output / terminal.
 
 ALTER TABLE devices
     ADD COLUMN enrollment_state TEXT NOT NULL DEFAULT 'pending',
-    ADD COLUMN enrollment_code  CHAR(5),
+    ADD COLUMN enrollment_code  CHAR(10),
     ADD COLUMN enrolled_at      TIMESTAMPTZ,
     ADD COLUMN enrolled_by      UUID REFERENCES users(id) ON DELETE SET NULL;
 

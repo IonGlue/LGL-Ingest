@@ -107,18 +107,18 @@ export default function EnrollmentPanel({ onEnrolled }: Props) {
             <input
               className="code-input"
               type="text"
-              maxLength={5}
-              pattern="[0-9]{5}"
-              placeholder="Enter 5-digit code"
+              maxLength={10}
+              pattern="[A-Z0-9]{10}"
+              placeholder="Enter 10-char code"
               value={codeInput}
-              onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 5))}
+              onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
               autoFocus
             />
             <button
               className="btn btn-primary"
               style={{ width: "auto" }}
               onClick={handleEnroll}
-              disabled={busy || codeInput.length !== 5}
+              disabled={busy || codeInput.length !== 10}
             >
               Approve
             </button>

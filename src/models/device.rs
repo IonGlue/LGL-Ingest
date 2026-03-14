@@ -27,10 +27,14 @@ pub struct Device {
 }
 
 impl Device {
-    /// Generate a random 5-digit numeric enrollment code.
+    /// Generate a random 10-character uppercase alphanumeric enrollment code.
+    /// 36^10 ≈ 3.6 trillion combinations.
     pub fn generate_code() -> String {
-        let n: u32 = rand::thread_rng().gen_range(10000..=99999);
-        format!("{n:05}")
+        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let mut rng = rand::thread_rng();
+        (0..10)
+            .map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char)
+            .collect()
     }
 
     pub async fn find_by_id(id: Uuid, db: &PgPool) -> Result<Option<Self>> {
