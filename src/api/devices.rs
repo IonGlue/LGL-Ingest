@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     auth::middleware::{require_admin, AuthUser},
     error::{AppError, Result},
-    models::{assignment::Assignment, claim::ControlClaim, device::Device},
+    models::{assignment::Assignment, audit::AuditLog, claim::ControlClaim, device::Device},
     AppState,
 };
 
@@ -18,17 +18,33 @@ pub struct DeviceFilter {
     pub state: Option<String>,
 }
 
+/// Computed connection status combining WS status + encoder state.
+fn compute_connection_status(status: &str, last_state: &str) -> String {
+    if status != "online" {
+        return "offline".to_string();
+    }
+    if last_state == "streaming" {
+        return "streaming".to_string();
+    }
+    "online".to_string()
+}
+
 #[derive(Serialize)]
 pub struct DeviceResponse {
     pub id: Uuid,
     pub device_id: String,
     pub hostname: String,
     pub version: String,
+    /// Raw WS status: "online" | "offline"
     pub status: String,
+    /// Encoder state: "idle" | "starting" | "streaming" | "stopping" | "error"
     pub last_state: String,
+    /// Combined status: "offline" | "online" | "streaming"
+    pub connection_status: String,
     pub last_seen_at: Option<chrono::DateTime<chrono::Utc>>,
     pub assigned_users: Vec<Uuid>,
     pub control_claimed_by: Option<Uuid>,
+    pub enrollment_state: String,
 }
 
 async fn enrich_device(device: Device, state: &AppState) -> Result<DeviceResponse> {
@@ -38,6 +54,8 @@ async fn enrich_device(device: Device, state: &AppState) -> Result<DeviceRespons
         .filter(|c| c.expires_at > chrono::Utc::now())
         .map(|c| c.user_id);
 
+    let connection_status = compute_connection_status(&device.status, &device.last_state);
+
     Ok(DeviceResponse {
         id: device.id,
         device_id: device.device_id,
@@ -45,9 +63,11 @@ async fn enrich_device(device: Device, state: &AppState) -> Result<DeviceRespons
         version: device.version,
         status: device.status,
         last_state: device.last_state,
+        connection_status,
         last_seen_at: device.last_seen_at,
         assigned_users,
         control_claimed_by,
+        enrollment_state: device.enrollment_state,
     })
 }
 
@@ -93,6 +113,107 @@ pub async fn list_unassigned_devices(
     require_admin(&claims)?;
     let devices = Device::list_unassigned(&state.db).await?;
     Ok(Json(serde_json::json!({ "devices": devices })))
+}
+
+/// List all devices pending enrollment approval (admin only).
+pub async fn list_pending_devices(
+    State(state): State<AppState>,
+    AuthUser(claims): AuthUser,
+) -> Result<Json<serde_json::Value>> {
+    require_admin(&claims)?;
+    let devices = Device::list_pending(&state.db).await?;
+    // Return minimal info including enrollment code so admin can verify
+    let resp: Vec<_> = devices
+        .into_iter()
+        .map(|d| serde_json::json!({
+            "id": d.id,
+            "device_id": d.device_id,
+            "hardware_id": d.hardware_id,
+            "hostname": d.hostname,
+            "version": d.version,
+            "enrollment_code": d.enrollment_code,
+            "status": d.status,
+            "registered_at": d.registered_at,
+        }))
+        .collect();
+    Ok(Json(serde_json::json!({ "devices": resp })))
+}
+
+#[derive(Deserialize)]
+pub struct EnrollBody {
+    pub code: String,
+}
+
+/// Admin confirms a device by submitting the matching 5-digit code.
+pub async fn enroll_device(
+    State(state): State<AppState>,
+    AuthUser(claims): AuthUser,
+    Path(device_id): Path<Uuid>,
+    Json(body): Json<EnrollBody>,
+) -> Result<Json<serde_json::Value>> {
+    require_admin(&claims)?;
+
+    let enrolled = Device::enroll(device_id, &body.code, claims.sub, &state.db).await?;
+    if !enrolled {
+        return Err(AppError::InvalidCommand(
+            "code does not match or device is not pending enrollment".to_string(),
+        ));
+    }
+
+    // Notify the device over Redis pub/sub so it gets the approval immediately
+    let channel = format!("enrollment:{device_id}");
+    let mut redis_conn = state.redis.clone();
+    let _: Result<()> = redis::cmd("PUBLISH")
+        .arg(&channel)
+        .arg("approved")
+        .query_async(&mut redis_conn)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")));
+
+    let _ = AuditLog::log_user_command(
+        &state.db,
+        claims.sub,
+        device_id,
+        "device.enroll",
+        None,
+    )
+    .await;
+
+    Ok(Json(serde_json::json!({ "enrolled": true })))
+}
+
+/// Admin rejects a pending device.
+pub async fn reject_device(
+    State(state): State<AppState>,
+    AuthUser(claims): AuthUser,
+    Path(device_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>> {
+    require_admin(&claims)?;
+
+    let rejected = Device::reject(device_id, &state.db).await?;
+    if !rejected {
+        return Err(AppError::NotFound);
+    }
+
+    // Notify the connected device immediately
+    let channel = format!("enrollment:{device_id}");
+    let mut redis_conn = state.redis.clone();
+    let _: std::result::Result<(), _> = redis::cmd("PUBLISH")
+        .arg(&channel)
+        .arg("rejected")
+        .query_async(&mut redis_conn)
+        .await;
+
+    let _ = AuditLog::log_user_command(
+        &state.db,
+        claims.sub,
+        device_id,
+        "device.reject",
+        None,
+    )
+    .await;
+
+    Ok(Json(serde_json::json!({ "rejected": true })))
 }
 
 pub async fn claim_device_to_org(
