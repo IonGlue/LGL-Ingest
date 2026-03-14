@@ -63,13 +63,35 @@ export interface LiveTelemetry {
   age_ms: number;
 }
 
+export interface BondPath {
+  interface: string;
+  priority: number;
+}
+
+/** Full device configuration — mirrors the device's uplink.toml completely. */
 export interface DeviceConfig {
+  // Video input
+  capture_device?: string;
   pipeline?: string;
   resolution?: string;
   framerate?: number;
+
+  // Encoder
   bitrate_min_kbps?: number;
   bitrate_max_kbps?: number;
-  capture_device?: string;
+
+  // SRT destination (direct, no bonding)
+  srt_host?: string;
+  srt_port?: number;
+  srt_latency_ms?: number;
+
+  // Bonding
+  bond_enabled?: boolean;
+  bond_relay_host?: string;
+  bond_relay_port?: number;
+  bond_local_port?: number;
+  bond_keepalive_ms?: number;
+  bond_paths?: BondPath[];
 }
 
 // ── Auth token storage ─────────────────────────────────────────────────────────
