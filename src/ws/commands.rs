@@ -17,6 +17,8 @@ fn default_priority() -> u32 { 1 }
 pub enum DeviceCommand {
     Start,
     Stop,
+    /// Reload config from disk and rebuild the pipeline in-process.
+    Restart,
     SetBitrateRange {
         min_kbps: u32,
         max_kbps: u32,
@@ -33,8 +35,9 @@ pub enum DeviceCommand {
         pipeline: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         resolution: Option<String>,
+        /// SMPTE framerate string, e.g. "29.97", "30", "25" (must match device-side String type)
         #[serde(skip_serializing_if = "Option::is_none")]
-        framerate: Option<u32>,
+        framerate: Option<String>,
 
         // Encoder
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,6 +52,9 @@ pub enum DeviceCommand {
         srt_port: Option<u16>,
         #[serde(skip_serializing_if = "Option::is_none")]
         srt_latency_ms: Option<u32>,
+        /// SRT stream passphrase (10-79 characters, or empty string to clear)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        srt_passphrase: Option<String>,
 
         // Bonding
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -87,7 +93,7 @@ impl DeviceCommand {
             }
             DeviceCommand::SetConfig {
                 bitrate_min_kbps, bitrate_max_kbps, framerate, resolution,
-                pipeline, srt_port, bond_relay_port, bond_paths, ..
+                pipeline, srt_port, srt_passphrase, bond_relay_port, bond_paths, ..
             } => {
                 if let (Some(min), Some(max)) = (bitrate_min_kbps, bitrate_max_kbps) {
                     if min > max {
@@ -98,8 +104,19 @@ impl DeviceCommand {
                     }
                 }
                 if let Some(fps) = framerate {
-                    if *fps == 0 || *fps > 120 {
-                        return Err(AppError::InvalidCommand("framerate must be 1-120".into()));
+                    let valid_rates = ["23.976", "23.98", "24", "25", "29.97", "30", "50", "59.94", "60"];
+                    if !valid_rates.contains(&fps.as_str()) {
+                        return Err(AppError::InvalidCommand(format!(
+                            "framerate '{fps}' must be a SMPTE standard rate: {}", valid_rates.join(", ")
+                        )));
+                    }
+                }
+                if let Some(pp) = srt_passphrase {
+                    // Empty string = clear passphrase; non-empty must be 10-79 chars (SRT spec)
+                    if !pp.is_empty() && (pp.len() < 10 || pp.len() > 79) {
+                        return Err(AppError::InvalidCommand(
+                            "srt_passphrase must be 10-79 characters (or empty to clear)".into()
+                        ));
                     }
                 }
                 if let Some(res) = resolution {

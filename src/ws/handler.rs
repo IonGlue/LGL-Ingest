@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Duration;
 use tokio::time::{interval, timeout};
-use tracing::{error, info, warn};
+use tracing::{error, info, warn, debug};
 use uuid::Uuid;
 
 use crate::{
@@ -295,6 +295,7 @@ async fn run_main_loop(
     let token_refresh_secs = state.config.auth.device_token_ttl.saturating_sub(120);
     let mut token_refresh = interval(Duration::from_secs(token_refresh_secs.max(60)));
     let mut telemetry_counter: u32 = 0;
+    let mut telemetry_received: u32 = 0;
     let db_sample_rate = state.config.telemetry.db_sample_rate;
 
     // Main message loop
@@ -303,6 +304,12 @@ async fn run_main_loop(
             msg = ws_rx.next() => {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
+                        telemetry_received += 1;
+                        if telemetry_received == 1 {
+                            info!(device_id = %device.device_id, bytes = text.len(), "first telemetry message received from device");
+                        } else {
+                            debug!(device_id = %device.device_id, bytes = text.len(), n = telemetry_received, "telemetry message received");
+                        }
                         handle_telemetry_msg(&text, &device, &state, &mut telemetry_counter, db_sample_rate).await;
                     }
                     Some(Ok(Message::Close(_))) | None => {
@@ -311,7 +318,7 @@ async fn run_main_loop(
                     }
                     Some(Ok(Message::Pong(_))) => {}
                     Some(Err(e)) => {
-                        warn!("WebSocket error for {}: {e}", device.device_id);
+                        warn!(device_id = %device.device_id, error = %e, "WebSocket error");
                         break;
                     }
                     _ => {}
@@ -359,13 +366,30 @@ async fn handle_telemetry_msg(
 ) {
     let report: TelemetryReport = match serde_json::from_str(text) {
         Ok(r) => r,
-        Err(_) => return,
+        Err(e) => {
+            // Truncate raw payload in log to avoid flooding — first 300 chars is enough to diagnose.
+            let snippet = &text[..text.len().min(300)];
+            warn!(
+                device_id = %device.device_id,
+                error = %e,
+                raw_snippet = %snippet,
+                "telemetry parse error — message dropped, Redis NOT updated"
+            );
+            return;
+        }
     };
+
+    tracing::debug!(
+        device_id = %device.device_id,
+        state     = %report.state,
+        paths     = report.paths.len(),
+        "telemetry received, updating Redis cache"
+    );
 
     // Update Redis live cache
     let redis_key = format!("telemetry:{}", device.id);
     let mut redis_conn = state.redis.clone();
-    let _: std::result::Result<(), _> = redis::cmd("SET")
+    let result: std::result::Result<(), redis::RedisError> = redis::cmd("SET")
         .arg(&redis_key)
         .arg(text)
         .arg("EX")
@@ -373,14 +397,27 @@ async fn handle_telemetry_msg(
         .query_async(&mut redis_conn)
         .await;
 
+    if let Err(e) = result {
+        warn!(
+            device_id = %device.device_id,
+            key       = %redis_key,
+            error     = %e,
+            "failed to write telemetry to Redis — live view will show stale data"
+        );
+    }
+
     // Update device last_state
-    let _ = Device::update_telemetry_state(device.id, &report.state, &state.db).await;
+    if let Err(e) = Device::update_telemetry_state(device.id, &report.state, &state.db).await {
+        warn!(device_id = %device.device_id, error = %e, "failed to update device state in DB");
+    }
 
     // Periodically persist to DB
     *counter += 1;
     if *counter >= db_sample_rate {
         *counter = 0;
-        let _ = TelemetryRecord::insert(device.id, &report, &state.db).await;
+        if let Err(e) = TelemetryRecord::insert(device.id, &report, &state.db).await {
+            warn!(device_id = %device.device_id, error = %e, "failed to persist telemetry record to DB");
+        }
     }
 }
 
