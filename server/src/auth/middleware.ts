@@ -1,6 +1,7 @@
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv, UserClaims } from '../types.js'
 import { validateUserToken } from './jwt.js'
+import { isLogtoMode, verifyLogtoToken } from './logto.js'
 import { AppError } from '../error.js'
 
 export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
@@ -10,7 +11,12 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null
   if (!token) throw AppError.unauthorized()
 
-  const claims = await validateUserToken(token, c.var.state.config.auth.jwt_secret)
+  // When deployed via orchestrate, validate the Logto org-scoped JWT.
+  // In standalone mode, fall back to the local HS256 secret from config.
+  const claims: UserClaims = isLogtoMode()
+    ? await verifyLogtoToken(token)
+    : await validateUserToken(token, c.var.state.config.auth.jwt_secret)
+
   c.set('user', claims)
   await next()
 })
