@@ -102,10 +102,7 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
           status = 'online',
           last_seen_at = now(),
           updated_at = now(),
-          verification_code = ${verificationCode},
-          verification_state = 'unverified',
-          verified_at = NULL,
-          verified_by = NULL
+          verification_code = ${verificationCode}
         WHERE id = ${existing[0].id}
         RETURNING *
       `
@@ -146,13 +143,16 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
     device = updated as Device
   }
 
-  // Enrolled — verify physical presence before activating
-  if (device.verification_code) {
+  // Enrolled — check verification state
+  if (device.verification_state === 'verified') {
+    // Already verified — tell the device so it can clear the code from its screen
+    send(ws, { msg_type: 'verification_approved' })
+  } else if (device.verification_code) {
+    // Needs verification — wait for admin to enter the code shown on device
     const verified = await waitForVerification(ws, device, state)
     if (!verified) return
   }
 
-  // Verified — run main loop
   await runMainLoop(ws, device, state)
 }
 
@@ -353,13 +353,7 @@ async function runMainLoop(ws: WebSocket, device: Device, state: AppState) {
       state.wsRegistry.remove(device.id)
 
       await db`
-        UPDATE devices SET
-          status = 'offline',
-          last_seen_at = now(),
-          updated_at = now(),
-          verification_state = 'unverified',
-          verified_at = NULL,
-          verified_by = NULL
+        UPDATE devices SET status = 'offline', last_seen_at = now(), updated_at = now()
         WHERE id = ${device.id}
       `.catch((e: unknown) => console.error('failed to set device offline:', e))
       await db`
