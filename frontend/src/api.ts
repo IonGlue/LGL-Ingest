@@ -92,6 +92,8 @@ export interface DeviceConfigSnapshot {
   srt_host: string;
   srt_port: number;
   srt_latency_ms: number;
+  /** True if a passphrase is configured on the device (actual value is never sent). */
+  srt_passphrase_set?: boolean;
   bond_enabled: boolean;
   bond_relay_host: string | null;
   bond_relay_port: number | null;
@@ -139,6 +141,8 @@ export interface DeviceConfig {
   srt_host?: string;
   srt_port?: number;
   srt_latency_ms?: number;
+  /** SRT passphrase — 10-79 chars to set, empty string to clear, omit to keep unchanged */
+  srt_passphrase?: string;
 
   // Bonding
   bond_enabled?: boolean;

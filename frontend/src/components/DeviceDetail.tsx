@@ -62,6 +62,8 @@ function configFromSnapshot(snap: DeviceConfigSnapshot): DeviceConfig {
     srt_host: snap.srt_host,
     srt_port: snap.srt_port,
     srt_latency_ms: snap.srt_latency_ms,
+    // Don't pre-fill passphrase — device never sends the actual value.
+    // The form starts blank; entering a value changes it, leaving blank = no change.
     bond_enabled: snap.bond_enabled,
     bond_relay_host: snap.bond_relay_host ?? undefined,
     bond_relay_port: snap.bond_relay_port ?? undefined,
@@ -194,7 +196,13 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
         srt_host: config.srt_host,
         srt_port: config.srt_port,
         srt_latency_ms: config.srt_latency_ms,
+        // Send passphrase only when non-empty (empty = no change).
+        // To CLEAR a passphrase use the dedicated Clear button.
+        ...(config.srt_passphrase ? { srt_passphrase: config.srt_passphrase } : {}),
       });
+      // Clear the passphrase input after save (don't keep plaintext in form)
+      setConfig((c) => ({ ...c, srt_passphrase: undefined }));
+      setSrtPassphraseHint(null);
       setConfigMsg({ ok: true, text: "Streaming destination updated." });
     } catch (e) {
       setConfigMsg({ ok: false, text: e instanceof ApiError ? e.message : "Failed to save" });
@@ -277,6 +285,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
         ...c,
         ...(host ? { srt_host: host } : {}),
         ...(port ? { srt_port: port } : {}),
+        ...(passphrase ? { srt_passphrase: passphrase } : {}),
       }));
       setSrtPassphraseHint(passphrase);
       return passphrase;
@@ -761,7 +770,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                   </span>
                   {srtPassphraseHint && (
                     <p className="status-msg" style={{ marginTop: 4 }}>
-                      Passphrase detected in URL: <code>{srtPassphraseHint}</code> — configure this on the ingest server separately.
+                      Passphrase from URL auto-filled in the field below.
                     </p>
                   )}
                 </div>
@@ -784,6 +793,32 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                     <input className="text-input" type="number" min={20} max={8000} placeholder="200"
                       value={config.srt_latency_ms ?? ""}
                       onChange={(e) => setConfig({ ...config, srt_latency_ms: e.target.value ? Number(e.target.value) : undefined })} />
+                  </div>
+                  <div className="field">
+                    <label>
+                      Passphrase
+                      {telemetry?.config?.srt_passphrase_set === true && (
+                        <span className="settings-hint" style={{ marginLeft: 8, color: "var(--color-yellow, #EAB308)" }}>
+                          ● currently set
+                        </span>
+                      )}
+                      {telemetry?.config?.srt_passphrase_set === false && (
+                        <span className="settings-hint" style={{ marginLeft: 8 }}>not set</span>
+                      )}
+                    </label>
+                    <input className="text-input" type="password" placeholder="Leave blank to keep current"
+                      value={config.srt_passphrase ?? ""}
+                      onChange={(e) => setConfig({ ...config, srt_passphrase: e.target.value || undefined })}
+                      autoComplete="new-password" />
+                    <span className="settings-hint" style={{ marginTop: 4 }}>
+                      10–79 characters. Leave blank to keep the current passphrase.
+                      {telemetry?.config?.srt_passphrase_set && (
+                        <> <button type="button" className="btn-link" style={{ marginLeft: 4 }}
+                          onClick={() => setConfig({ ...config, srt_passphrase: "" })}>
+                          Clear passphrase
+                        </button></>
+                      )}
+                    </span>
                   </div>
                 </div>
 

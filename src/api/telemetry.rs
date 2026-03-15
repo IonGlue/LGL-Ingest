@@ -10,6 +10,7 @@ use chrono::{DateTime, Duration, Utc};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -36,7 +37,11 @@ pub async fn live_telemetry(
     let raw: Option<String> = redis::cmd("GET").arg(&key).query_async(&mut redis_conn).await?;
 
     match raw {
-        None => Err(AppError::NotFound),
+        None => {
+            // Warn so this is visible without debug logging — helps diagnose "waiting for telemetry" issues.
+            warn!(device_id = %device_id, key = %key, "live telemetry not in Redis cache (key missing or expired — device may not be connected/enrolled, or Redis write is failing)");
+            Err(AppError::NotFound)
+        }
         Some(json_str) => {
             let mut val: Value = serde_json::from_str(&json_str)
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
@@ -108,9 +113,8 @@ pub async fn telemetry_stream(
 async fn stream_telemetry(ws: WebSocket, device_id: Uuid, state: AppState) {
     let (mut tx, mut rx) = ws.split();
 
-    // Subscribe to telemetry updates via Redis keyspace or poll
-    // For simplicity: poll Redis every 500ms and push if data changed
     let mut last_ts: Option<i64> = None;
+    let mut miss_count: u32 = 0;
 
     loop {
         tokio::select! {
@@ -119,18 +123,38 @@ async fn stream_telemetry(ws: WebSocket, device_id: Uuid, state: AppState) {
                 let mut redis_conn = state.redis.clone();
                 let raw: Option<String> = match redis::cmd("GET").arg(&key).query_async(&mut redis_conn).await {
                     Ok(v) => v,
-                    Err(_) => break,
+                    Err(e) => {
+                        warn!(device_id = %device_id, error = %e, "Redis GET failed in telemetry stream");
+                        break;
+                    }
                 };
 
-                if let Some(json_str) = raw {
-                    if let Ok(val) = serde_json::from_str::<Value>(&json_str) {
-                        let ts = val.get("ts").and_then(|t| t.as_i64());
-                        if ts != last_ts {
-                            last_ts = ts;
-                            let msg = json!({ "type": "telemetry", "data": val }).to_string();
-                            if tx.send(Message::Text(msg.into())).await.is_err() {
-                                break;
+                match raw {
+                    None => {
+                        miss_count += 1;
+                        // First miss: warn immediately so it's visible in default log level.
+                        // Subsequent misses: warn every 10 seconds to avoid flooding.
+                        if miss_count == 1 || miss_count % 20 == 0 {
+                            warn!(
+                                device_id = %device_id,
+                                miss_count,
+                                "telemetry stream: Redis key absent — device not connected/enrolled, or Redis write is failing"
+                            );
+                        }
+                    }
+                    Some(json_str) => {
+                        miss_count = 0;
+                        if let Ok(val) = serde_json::from_str::<Value>(&json_str) {
+                            let ts = val.get("ts").and_then(|t| t.as_i64());
+                            if ts != last_ts {
+                                last_ts = ts;
+                                let msg = json!({ "type": "telemetry", "data": val }).to_string();
+                                if tx.send(Message::Text(msg.into())).await.is_err() {
+                                    break;
+                                }
                             }
+                        } else {
+                            warn!(device_id = %device_id, "telemetry stream: failed to parse cached Redis JSON");
                         }
                     }
                 }
