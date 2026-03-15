@@ -64,7 +64,7 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
     return
   }
 
-  let register: { msg_type: string; device_id: string; hardware_id: string; hostname: string; version: string }
+  let register: { msg_type: string; device_id: string; hardware_id: string; hostname: string; version: string; verification_code?: string }
   try {
     register = JSON.parse(firstMsg)
     if (register.msg_type !== 'register') throw new Error('unexpected')
@@ -83,11 +83,12 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
     const existing = await db`
       SELECT * FROM devices WHERE device_id = ${register.device_id}
     `
+    const verificationCode = register.verification_code ?? null
     if (existing.length === 0) {
       const code = generateCode()
       const [d] = await db`
-        INSERT INTO devices (device_id, hardware_id, hostname, version, status, last_seen_at, enrollment_state, enrollment_code)
-        VALUES (${register.device_id}, ${register.hardware_id}, ${register.hostname}, ${register.version}, 'online', now(), 'pending', ${code})
+        INSERT INTO devices (device_id, hardware_id, hostname, version, status, last_seen_at, enrollment_state, enrollment_code, verification_code, verification_state)
+        VALUES (${register.device_id}, ${register.hardware_id}, ${register.hostname}, ${register.version}, 'online', now(), 'pending', ${code}, ${verificationCode}, 'unverified')
         RETURNING *
       `
       device = d as Device
@@ -100,7 +101,8 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
           version = ${register.version},
           status = 'online',
           last_seen_at = now(),
-          updated_at = now()
+          updated_at = now(),
+          verification_code = ${verificationCode}
         WHERE id = ${existing[0].id}
         RETURNING *
       `
@@ -141,7 +143,16 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
     device = updated as Device
   }
 
-  // Enrolled — run main loop
+  // Enrolled — check verification state
+  if (device.verification_state === 'verified') {
+    // Already verified — tell the device so it can clear the code from its screen
+    send(ws, { msg_type: 'verification_approved' })
+  } else if (device.verification_code) {
+    // Needs verification — wait for admin to enter the code shown on device
+    const verified = await waitForVerification(ws, device, state)
+    if (!verified) return
+  }
+
   await runMainLoop(ws, device, state)
 }
 
@@ -198,6 +209,62 @@ async function waitForEnrollment(
 
       codeInterval = setInterval(() => {
         send(ws, { msg_type: 'enrollment_pending', code, device_uuid: device.id })
+      }, 15_000)
+    }).catch((e) => {
+      console.error(`failed to subscribe to ${channel}:`, e)
+      finish(false)
+    })
+  })
+}
+
+async function waitForVerification(
+  ws: WebSocket,
+  device: Device,
+  state: AppState,
+): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const sub = new Redis(state.config.redis.url)
+    const channel = `verification:${device.id}`
+    let resolved = false
+    let pingInterval: ReturnType<typeof setInterval>
+    let reminderInterval: ReturnType<typeof setInterval>
+
+    function finish(result: boolean) {
+      if (resolved) return
+      resolved = true
+      clearInterval(pingInterval)
+      clearInterval(reminderInterval)
+      sub.unsubscribe().catch(() => {})
+      sub.disconnect()
+      ws.removeListener('close', onClose)
+      resolve(result)
+    }
+
+    sub.on('message', (_ch: string, message: string) => {
+      if (message === 'approved') {
+        console.log(`device verified: ${device.device_id}`)
+        send(ws, { msg_type: 'verification_approved' })
+        finish(true)
+      }
+    })
+
+    const onClose = () => {
+      console.log(`device disconnected during verification: ${device.device_id}`)
+      finish(false)
+    }
+    ws.on('close', onClose)
+
+    // Subscribe first, then notify device so admin approval can't race us
+    sub.subscribe(channel).then(() => {
+      send(ws, { msg_type: 'verification_pending', code: device.verification_code })
+
+      pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.ping()
+      }, 30_000)
+
+      // Resend reminder every 15s in case the device missed it
+      reminderInterval = setInterval(() => {
+        send(ws, { msg_type: 'verification_pending', code: device.verification_code })
       }, 15_000)
     }).catch((e) => {
       console.error(`failed to subscribe to ${channel}:`, e)
@@ -285,9 +352,10 @@ async function runMainLoop(ws: WebSocket, device: Device, state: AppState) {
       commandSub.disconnect()
       state.wsRegistry.remove(device.id)
 
-      await db`UPDATE devices SET status = 'offline', last_seen_at = now(), updated_at = now() WHERE id = ${device.id}`.catch(
-        (e: unknown) => console.error('failed to set device offline:', e),
-      )
+      await db`
+        UPDATE devices SET status = 'offline', last_seen_at = now(), updated_at = now()
+        WHERE id = ${device.id}
+      `.catch((e: unknown) => console.error('failed to set device offline:', e))
       await db`
         INSERT INTO audit_log (actor_type, action, target_type, target_id)
         VALUES ('system', 'device.disconnect', 'device', ${device.id})
