@@ -19,6 +19,9 @@ services:
     ports:
       - "6379:6379"
 
+  # The supervisor uses host networking so it can freely bind to SRT ports
+  # (port 9000 REST API, port 5001 default SRT input, ports 10000-11000 internal routing,
+  #  plus any custom SRT listen ports configured per-source)
   supervisor:
     build:
       context: .
@@ -26,9 +29,10 @@ services:
     restart: unless-stopped
     network_mode: host
     volumes:
-      - /tmp:/tmp
+      - /tmp:/tmp                              # temp config files for worker processes
       - recordings:/recordings
       - hls:/var/hls
+      - ./ingest-supervisor/config.toml:/etc/ingest-supervisor/config.toml:ro
     environment:
       RUST_LOG: info
 
@@ -40,15 +44,18 @@ services:
     depends_on:
       - postgres
       - redis
-      - supervisor
     ports:
       - "3000:3000"
     environment:
       DATABASE_URL: postgres://lgl:lgl@postgres:5432/lgl_ingest
       REDIS_URL: redis://redis:6379
       JWT_SECRET: changeme-in-production
-      SUPERVISOR_API_URL: http://supervisor:9000
+      # supervisor uses network_mode: host — reach it via host gateway
+      SUPERVISOR_API_URL: http://host.docker.internal:9000
       CONFIG_PATH: /app/config/ingest.toml
+    extra_hosts:
+      # Allows server container to reach host-networked supervisor on Linux
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./config:/app/config:ro
 
@@ -61,8 +68,7 @@ services:
       - server
     ports:
       - "8080:8080"
-    environment:
-      VITE_API_BASE: http://server:3000
+    # No env vars needed — nginx proxies /api and /ws to the server container
 
 volumes:
   postgres_data:
