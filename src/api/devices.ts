@@ -39,6 +39,8 @@ async function enrichDevice(device: Device, state: any) {
     control_claimed_by: controlClaimedBy,
     enrollment_state: device.enrollment_state,
     archived: device.archived,
+    verification_state: device.verification_state,
+    verified_at: device.verified_at,
   }
 }
 
@@ -127,6 +129,39 @@ devices.post('/:id/enroll', async (c) => {
   `.catch(() => {})
 
   return c.json({ enrolled: true })
+})
+
+devices.post('/:id/verify', async (c) => {
+  const { state, user } = c.var
+  requireAdmin(user)
+  const deviceId = c.req.param('id')
+  const { code } = await c.req.json<{ code: string }>()
+
+  // Verify code matches what the device showed on its screen
+  const result = await state.db`
+    UPDATE devices SET
+      verification_state = 'verified',
+      verified_at = now(),
+      verified_by = ${user.sub},
+      updated_at = now()
+    WHERE id = ${deviceId}
+      AND enrollment_state = 'enrolled'
+      AND verification_code = ${code}
+      AND status = 'online'
+  `
+  if (result.count === 0) {
+    throw AppError.invalidCommand('code does not match, device is not online, or device is not enrolled')
+  }
+
+  // Signal the waiting device WebSocket handler
+  await state.redis.publish(`verification:${deviceId}`, 'approved').catch(() => {})
+
+  await state.db`
+    INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id)
+    VALUES ('user', ${user.sub}, 'device.verify', 'device', ${deviceId})
+  `.catch(() => {})
+
+  return c.json({ verified: true })
 })
 
 devices.post('/:id/reject', async (c) => {

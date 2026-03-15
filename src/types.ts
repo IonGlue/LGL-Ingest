@@ -115,6 +115,11 @@ export interface Device {
   enrolled_at: Date | null
   enrolled_by: string | null
   archived: boolean
+  // Verification fields (RFC 8628-style physical presence check)
+  verification_code: string | null
+  verification_state: string   // 'unverified' | 'verified'
+  verified_at: Date | null
+  verified_by: string | null
 }
 
 export interface Assignment {
