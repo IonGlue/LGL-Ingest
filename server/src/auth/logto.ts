@@ -72,12 +72,13 @@ export async function verifyLogtoToken(token: string): Promise<UserClaims> {
     throw AppError.unauthorized()
   }
 
-  const user = await res.json() as { role: string }
+  const user = await res.json() as { id: string; email: string; role: string; display_name?: string }
   return {
     sub: payload.sub as string,
     role: user.role,
     type: 'user',
     exp: payload.exp as number,
     iat: payload.iat as number,
+    _logto: { id: user.id, email: user.email, display_name: user.display_name ?? '', role: user.role },
   }
 }
