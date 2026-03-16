@@ -1,0 +1,39 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: tenant-{{SLUG}}-nc-cloudflared
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    networks:
+      - internal
+    depends_on:
+      - node-controller
+    restart: unless-stopped
+
+  node-controller:
+    image: {{NODE_CONTROLLER_IMAGE}}
+    container_name: tenant-{{SLUG}}-node-controller
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    environment:
+      - PORT=3001
+      - ORCHESTRATE_URL=${ORCHESTRATE_URL}
+      - LOGTO_ENDPOINT=${LOGTO_ENDPOINT:-https://auth.lgl-os.com}
+      - LOGTO_APP_ID=${LOGTO_APP_ID}
+      - LOGTO_APP_SECRET=${LOGTO_APP_SECRET}
+      - LOGTO_REDIRECT_URI=https://{{SLUG}}.nodecontroller.${BASE_DOMAIN}/auth/callback
+      - LOGTO_API_RESOURCE=${LOGTO_API_RESOURCE:-https://api.orchestrate.lgl-os.com}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CORS_ORIGIN=https://*.${BASE_DOMAIN}
+    networks:
+      - internal
+      - shared
+    restart: unless-stopped
+
+networks:
+  internal:
+    driver: bridge
+  shared:
+    external: true
+    name: {{DOCKER_NETWORK}}

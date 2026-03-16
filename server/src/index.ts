@@ -20,6 +20,8 @@ import destinationsRouter from './api/destinations.js'
 import routingRouter from './api/routing.js'
 import systemRouter from './api/system.js'
 import syncRouter from './api/sync.js'
+import portalNodesRouter from './api/portalNodes.js'
+import nodeAssignmentsRouter from './api/nodeAssignments.js'
 
 const configPath = process.env.CONFIG_PATH ?? 'config/ingest.toml'
 const config = loadConfig(configPath)
@@ -58,6 +60,8 @@ app.route('/api/destinations', destinationsRouter)
 app.route('/api/routing', routingRouter)
 app.route('/api/system', systemRouter)
 app.route('/api/sync-groups', syncRouter)
+app.route('/api/portal/nodes', portalNodesRouter)
+app.route('/api/node-assignments', nodeAssignmentsRouter)
 
 // Serve frontend static files and SPA fallback
 app.use('/*', serveStatic({ root: './public' }))
