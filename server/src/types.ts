@@ -148,6 +148,16 @@ export interface EncoderStats {
   resolution: string
 }
 
+export interface NodeAssignment {
+  id: string
+  name: string
+  model: string
+  management_url: string
+  config: { allowed_sections: string[] }
+  created_at: Date
+  updated_at: Date
+}
+
 export interface AuditEntry {
   id: number
   actor_type: string
