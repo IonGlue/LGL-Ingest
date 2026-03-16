@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde_json::{json, Value};
@@ -14,7 +14,8 @@ use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use crate::port_pool::PortPool;
-use crate::routing::{DestSlot, DestStatus, RoutingEntry, RoutingTable, SourceSlot, SourceStatus};
+use crate::routing::{DestSlot, DestStatus, RoutingEntry, RoutingSnapshot, RoutingTable,
+                     SourceSlot, SourceStatus, SyncGroup, SyncGroupStatus};
 use crate::supervisor::Supervisor;
 
 #[derive(Clone)]
@@ -44,6 +45,12 @@ pub async fn serve(
         .route("/dests/:id/stop", post(stop_dest))
         .route("/routes", get(list_routes).post(create_route))
         .route("/routes/:id", delete(delete_route))
+        // Sync group endpoints
+        .route("/sync-groups", get(list_sync_groups).post(create_sync_group))
+        .route("/sync-groups/:id", get(get_sync_group).put(update_sync_group).delete(delete_sync_group))
+        .route("/sync-groups/:id/start", post(start_sync_group))
+        .route("/sync-groups/:id/stop", post(stop_sync_group))
+        .route("/sync-groups/:id/status", get(sync_group_status))
         .layer(CorsLayer::permissive())
         .with_state(state);
 
@@ -243,7 +250,7 @@ async fn start_dest(State(state): State<ApiState>, Path(id): Path<String>) -> im
         let routing = state.routing.read().await;
         let dest = routing.dests.get(&id).cloned();
         let source_port = routing.source_for_dest(&id)
-            .and_then(|sid| routing.sources.get(&sid).and_then(|s| s.internal_port));
+            .and_then(|sid| routing.effective_port_for_source(&sid));
         (dest, source_port)
     };
 
@@ -312,11 +319,11 @@ async fn create_route(
 
     state.routing.write().await.add_route(route.clone());
 
-    // Auto-start dest if source is active
+    // Auto-start dest if source is active, using effective (aligned) port.
     let (dest, source_port) = {
         let routing = state.routing.read().await;
         let dest = routing.dests.get(&dest_id).cloned();
-        let source_port = routing.sources.get(&source_id).and_then(|s| s.internal_port);
+        let source_port = routing.effective_port_for_source(&source_id);
         (dest, source_port)
     };
 
@@ -348,4 +355,210 @@ async fn delete_route(State(state): State<ApiState>, Path(id): Path<String>) -> 
 
     state.routing.write().await.remove_route(&id);
     Json(json!({"deleted": true}))
+}
+
+// ── Sync groups ───────────────────────────────────────────────────────────────
+
+async fn list_sync_groups(State(state): State<ApiState>) -> impl IntoResponse {
+    let routing = state.routing.read().await;
+    let groups: Vec<&SyncGroup> = routing.sync_groups.values().collect();
+    Json(json!({ "sync_groups": groups }))
+}
+
+async fn get_sync_group(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+    let routing = state.routing.read().await;
+    match routing.sync_groups.get(&id) {
+        Some(g) => (StatusCode::OK, Json(json!(g))).into_response(),
+        None => (StatusCode::NOT_FOUND, Json(json!({"error": "sync group not found"}))).into_response(),
+    }
+}
+
+async fn create_sync_group(
+    State(state): State<ApiState>,
+    Json(body): Json<Value>,
+) -> impl IntoResponse {
+    let id = body.get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+    let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("Unnamed sync group").to_string();
+    let target_delay_ms = body.get("target_delay_ms").and_then(|v| v.as_u64()).unwrap_or(500) as u32;
+    let max_offset_ms = body.get("max_offset_ms").and_then(|v| v.as_u64()).unwrap_or(2000) as u32;
+    let source_ids: Vec<String> = body.get("source_ids")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default();
+
+    // Validate that all source IDs exist
+    {
+        let routing = state.routing.read().await;
+        for sid in &source_ids {
+            if !routing.sources.contains_key(sid) {
+                return (StatusCode::NOT_FOUND,
+                    Json(json!({"error": format!("source not found: {sid}")}))).into_response();
+            }
+        }
+    }
+
+    let group = SyncGroup {
+        id: id.clone(),
+        name,
+        target_delay_ms,
+        max_offset_ms,
+        source_ids,
+        aligned_ports: std::collections::HashMap::new(),
+        status: SyncGroupStatus::Idle,
+    };
+
+    state.routing.write().await.add_sync_group(group.clone());
+    (StatusCode::CREATED, Json(json!(group))).into_response()
+}
+
+async fn update_sync_group(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> impl IntoResponse {
+    let mut routing = state.routing.write().await;
+    let group = match routing.sync_groups.get_mut(&id) {
+        Some(g) => g,
+        None => return (StatusCode::NOT_FOUND, Json(json!({"error": "sync group not found"}))).into_response(),
+    };
+
+    if let Some(v) = body.get("name").and_then(|v| v.as_str()) {
+        group.name = v.to_string();
+    }
+    if let Some(v) = body.get("target_delay_ms").and_then(|v| v.as_u64()) {
+        group.target_delay_ms = v as u32;
+    }
+    if let Some(v) = body.get("max_offset_ms").and_then(|v| v.as_u64()) {
+        group.max_offset_ms = v as u32;
+    }
+    if let Some(arr) = body.get("source_ids").and_then(|v| v.as_array()) {
+        group.source_ids = arr.iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect();
+    }
+
+    let group = group.clone();
+    (StatusCode::OK, Json(json!(group))).into_response()
+}
+
+async fn delete_sync_group(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+    // Stop the sync worker if running.
+    state.supervisor.write().await.stop_worker(&id).await;
+    state.routing.write().await.remove_sync_group(&id);
+    Json(json!({"deleted": true}))
+}
+
+async fn start_sync_group(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+    // Allocate aligned output ports from the port pool.
+    let (group, port_assignments) = {
+        let routing = state.routing.read().await;
+        let group = match routing.sync_groups.get(&id) {
+            Some(g) => g.clone(),
+            None => return (StatusCode::NOT_FOUND, Json(json!({"error": "sync group not found"}))).into_response(),
+        };
+
+        // Collect source IDs that need aligned ports.
+        let mut pool = state.port_pool.write().await;
+        let mut assignments = std::collections::HashMap::new();
+        for sid in &group.source_ids {
+            if routing.sources.get(sid).and_then(|s| s.internal_port).is_none() {
+                return (StatusCode::BAD_REQUEST,
+                    Json(json!({"error": format!("source {sid} has no internal_port — start it first")}))).into_response();
+            }
+            match pool.allocate() {
+                Some(port) => { assignments.insert(sid.clone(), port); }
+                None => {
+                    // Release any ports we just allocated.
+                    for p in assignments.values() { pool.release(*p); }
+                    return (StatusCode::SERVICE_UNAVAILABLE,
+                        Json(json!({"error": "no ports available for aligned outputs"}))).into_response();
+                }
+            }
+        }
+        (group, assignments)
+    };
+
+    // Update group with aligned ports and status.
+    {
+        let mut routing = state.routing.write().await;
+        if let Some(g) = routing.sync_groups.get_mut(&id) {
+            g.aligned_ports = port_assignments;
+            g.status = SyncGroupStatus::Active;
+        }
+    }
+
+    // Spawn the ingest-sync worker.
+    let (group_snapshot, routing_snapshot) = {
+        let routing = state.routing.read().await;
+        (routing.sync_groups.get(&id).cloned(), routing.clone_for_sync())
+    };
+    if let Some(group) = group_snapshot {
+        if let Err(e) = state.supervisor.write().await
+            .start_sync_group(&group, &routing_snapshot).await
+        {
+            let mut routing = state.routing.write().await;
+            if let Some(g) = routing.sync_groups.get_mut(&id) {
+                g.status = SyncGroupStatus::Error;
+            }
+            return (StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()}))).into_response();
+        }
+    }
+
+    Json(json!({"started": true})).into_response()
+}
+
+async fn stop_sync_group(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+    state.supervisor.write().await.stop_worker(&id).await;
+
+    // Release aligned ports back to the pool.
+    let ports: Vec<u16> = {
+        let routing = state.routing.read().await;
+        routing.sync_groups.get(&id)
+            .map(|g| g.aligned_ports.values().copied().collect())
+            .unwrap_or_default()
+    };
+    {
+        let mut pool = state.port_pool.write().await;
+        for p in ports { pool.release(p); }
+    }
+
+    let mut routing = state.routing.write().await;
+    if let Some(g) = routing.sync_groups.get_mut(&id) {
+        g.status = SyncGroupStatus::Idle;
+        g.aligned_ports.clear();
+    }
+    Json(json!({"stopped": true}))
+}
+
+async fn sync_group_status(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+    let routing = state.routing.read().await;
+    let group = match routing.sync_groups.get(&id) {
+        Some(g) => g,
+        None => return (StatusCode::NOT_FOUND, Json(json!({"error": "sync group not found"}))).into_response(),
+    };
+
+    // Build per-stream status: source_id → aligned_port, internal_port, status
+    let streams: Vec<Value> = group.source_ids.iter().map(|sid| {
+        let internal_port = routing.sources.get(sid).and_then(|s| s.internal_port);
+        let aligned_port = group.aligned_ports.get(sid).copied();
+        json!({
+            "source_id": sid,
+            "internal_port": internal_port,
+            "aligned_port": aligned_port,
+        })
+    }).collect();
+
+    Json(json!({
+        "id": group.id,
+        "name": group.name,
+        "status": group.status,
+        "target_delay_ms": group.target_delay_ms,
+        "max_offset_ms": group.max_offset_ms,
+        "streams": streams,
+    })).into_response()
 }

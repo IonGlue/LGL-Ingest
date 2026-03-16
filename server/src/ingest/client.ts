@@ -39,4 +39,14 @@ export class IngestClient {
     return this.request<unknown>('POST', '/routes', data)
   }
   deleteRoute(id: string) { return this.request<void>('DELETE', `/routes/${id}`) }
+
+  // Sync groups
+  listSyncGroups() { return this.request<unknown>('GET', '/sync-groups') }
+  getSyncGroup(id: string) { return this.request<unknown>('GET', `/sync-groups/${id}`) }
+  createSyncGroup(data: unknown) { return this.request<unknown>('POST', '/sync-groups', data) }
+  updateSyncGroup(id: string, data: unknown) { return this.request<unknown>('PUT', `/sync-groups/${id}`, data) }
+  deleteSyncGroup(id: string) { return this.request<void>('DELETE', `/sync-groups/${id}`) }
+  startSyncGroup(id: string) { return this.request<unknown>('POST', `/sync-groups/${id}/start`) }
+  stopSyncGroup(id: string) { return this.request<unknown>('POST', `/sync-groups/${id}/stop`) }
+  syncGroupStatus(id: string) { return this.request<unknown>('GET', `/sync-groups/${id}/status`) }
 }

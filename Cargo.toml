@@ -3,5 +3,6 @@ members = [
     "ingest-supervisor",
     "ingest-source",
     "ingest-dest",
+    "ingest-sync",
 ]
 resolver = "2"
