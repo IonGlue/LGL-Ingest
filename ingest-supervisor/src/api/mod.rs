@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde_json::{json, Value};
@@ -14,7 +14,7 @@ use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use crate::port_pool::PortPool;
-use crate::routing::{DestSlot, DestStatus, RoutingEntry, RoutingSnapshot, RoutingTable,
+use crate::routing::{DestSlot, DestStatus, RoutingEntry, RoutingTable,
                      SourceSlot, SourceStatus, SyncGroup, SyncGroupStatus};
 use crate::supervisor::Supervisor;
 
@@ -93,7 +93,7 @@ async fn get_source(State(state): State<ApiState>, Path(id): Path<String>) -> im
 
 async fn create_source(
     State(state): State<ApiState>,
-    Json(mut body): Json<Value>,
+    Json(body): Json<Value>,
 ) -> impl IntoResponse {
     let id = body.get("id")
         .and_then(|v| v.as_str())
@@ -454,7 +454,7 @@ async fn delete_sync_group(State(state): State<ApiState>, Path(id): Path<String>
 
 async fn start_sync_group(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
     // Allocate aligned output ports from the port pool.
-    let (group, port_assignments) = {
+    let (_group, port_assignments) = {
         let routing = state.routing.read().await;
         let group = match routing.sync_groups.get(&id) {
             Some(g) => g.clone(),

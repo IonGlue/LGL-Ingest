@@ -64,25 +64,18 @@ impl Supervisor {
 
         let config_str = serde_json::to_string(&worker_config)?;
 
-        info!("starting source worker: {} (type={})", source.id, source.source_type);
-
-        let child = tokio::process::Command::new(&self.config.source_binary)
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
-            .spawn()?;
-
-        // Write config to stdin
-        // Note: we pass config via a temp file to avoid stdin complexity with async
         let config_path = format!("/tmp/ingest-source-{}.json", source.id);
         std::fs::write(&config_path, &config_str)?;
 
-        // Re-spawn with config file arg
+        info!("starting source worker: {} (type={})", source.id, source.source_type);
+
         let child = tokio::process::Command::new(&self.config.source_binary)
             .arg(&config_path)
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit())
             .spawn()?;
+
+        let pid = child.id();
 
         let handle = WorkerHandle {
             id: source.id.clone(),
@@ -95,10 +88,11 @@ impl Supervisor {
 
         self.workers.insert(source.id.clone(), handle);
 
-        // Update source status
+        // Update source status and PID
         let mut routing = self.routing.write().await;
         if let Some(s) = routing.sources.get_mut(&source.id) {
             s.status = SourceStatus::Active;
+            s.process_pid = pid;
         }
 
         Ok(())
@@ -124,6 +118,8 @@ impl Supervisor {
             .stderr(std::process::Stdio::inherit())
             .spawn()?;
 
+        let pid = child.id();
+
         let handle = WorkerHandle {
             id: dest.id.clone(),
             kind: WorkerKind::Dest,
@@ -138,6 +134,7 @@ impl Supervisor {
         let mut routing = self.routing.write().await;
         if let Some(d) = routing.dests.get_mut(&dest.id) {
             d.status = DestStatus::Active;
+            d.process_pid = pid;
         }
 
         Ok(())
@@ -260,6 +257,11 @@ impl Supervisor {
                 WorkerKind::Dest => {
                     if let Some(d) = routing.dests.get_mut(id) {
                         d.status = DestStatus::Error;
+                    }
+                }
+                WorkerKind::Sync => {
+                    if let Some(g) = routing.sync_groups.get_mut(id) {
+                        g.status = crate::routing::SyncGroupStatus::Error;
                     }
                 }
             }
