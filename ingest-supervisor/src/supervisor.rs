@@ -323,8 +323,14 @@ async fn do_restart(supervisor: Arc<RwLock<Supervisor>>, id: &str, kind: &Worker
                 (group, snapshot)
             };
             if let Some(group) = group {
-                if let Err(e) = sup.start_sync_group(&group, &snapshot).await {
-                    error!("failed to restart sync group {id}: {e}");
+                match sup.start_sync_group(&group, &snapshot).await {
+                    Ok(_) => {
+                        let mut routing = sup.routing.write().await;
+                        if let Some(g) = routing.sync_groups.get_mut(id) {
+                            g.status = SyncGroupStatus::Active;
+                        }
+                    }
+                    Err(e) => error!("failed to restart sync group {id}: {e}"),
                 }
             }
         }

@@ -157,5 +157,34 @@ async function hydrateIngestSupervisor(appState: AppState) {
     } catch { /* route may already exist */ }
   }
 
-  console.log(`supervisor hydrated: ${sources.length} sources, ${dests.length} dests, ${routes.length} routes`)
+  // Re-register active sync groups, restoring their persisted aligned ports.
+  const activeSyncGroups = await db`
+    SELECT sg.id, sg.name, sg.target_delay_ms, sg.max_offset_ms,
+           COALESCE(json_agg(sgm.source_id) FILTER (WHERE sgm.source_id IS NOT NULL), '[]') AS source_ids,
+           COALESCE(
+             json_object_agg(sgp.source_id, sgp.aligned_port) FILTER (WHERE sgp.source_id IS NOT NULL),
+             '{}'
+           ) AS aligned_ports
+    FROM sync_groups sg
+    LEFT JOIN sync_group_members sgm ON sgm.sync_group_id = sg.id
+    LEFT JOIN sync_group_ports sgp ON sgp.sync_group_id = sg.id
+    WHERE sg.status = 'active'
+    GROUP BY sg.id
+  `
+  for (const g of activeSyncGroups) {
+    try {
+      await ingest.createSyncGroup({
+        id: g.id, name: g.name,
+        target_delay_ms: g.target_delay_ms, max_offset_ms: g.max_offset_ms,
+        source_ids: g.source_ids,
+      })
+      // Restore the supervisor with the known aligned ports so destinations
+      // can reconnect to the correct ports after a restart.
+      if (Object.keys(g.aligned_ports ?? {}).length > 0) {
+        await ingest.updateSyncGroup(g.id, { aligned_ports: g.aligned_ports })
+      }
+    } catch { /* supervisor may already know about it */ }
+  }
+
+  console.log(`supervisor hydrated: ${sources.length} sources, ${dests.length} dests, ${routes.length} routes, ${activeSyncGroups.length} active sync groups`)
 }

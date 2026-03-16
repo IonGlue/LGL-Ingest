@@ -4,7 +4,7 @@ import { AppError } from '../error.js'
 import { authMiddleware, requireOperatorOrAbove } from '../auth/middleware.js'
 import { IngestClient } from '../ingest/client.js'
 
-const VALID_SOURCE_TYPES = ['encoder', 'srt_listen', 'srt_pull', 'rtmp_pull', 'test_pattern', 'placeholder']
+const VALID_SOURCE_TYPES = ['encoder', 'srt_listen', 'srt_pull', 'test_pattern', 'placeholder']
 
 const app = new Hono<AppEnv>()
 
@@ -116,12 +116,17 @@ app.delete('/:id', async (c) => {
 app.post('/:id/start', async (c) => {
   requireOperatorOrAbove(c.var.user)
   const id = c.req.param('id')
-  const [source] = await c.var.state.db`SELECT id, source_type FROM sources WHERE id = ${id}`
+  const { db } = c.var.state
+  const [source] = await db`SELECT id, source_type FROM sources WHERE id = ${id}`
   if (!source) throw AppError.notFound()
   if (source.source_type === 'placeholder') throw AppError.validation('cannot start a placeholder source')
 
   try {
     const result = await client(c).startSource(id)
+    await db`
+      INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id)
+      VALUES ('user', ${c.var.user.sub}, 'source.start', 'source', ${id})
+    `.catch(() => {})
     return c.json(result)
   } catch (e) {
     throw AppError.internal(String(e))
@@ -131,12 +136,17 @@ app.post('/:id/start', async (c) => {
 app.post('/:id/stop', async (c) => {
   requireOperatorOrAbove(c.var.user)
   const id = c.req.param('id')
-  const [source] = await c.var.state.db`SELECT id, source_type FROM sources WHERE id = ${id}`
+  const { db } = c.var.state
+  const [source] = await db`SELECT id, source_type FROM sources WHERE id = ${id}`
   if (!source) throw AppError.notFound()
   if (source.source_type === 'placeholder') throw AppError.validation('cannot stop a placeholder source')
 
   try {
     const result = await client(c).stopSource(id)
+    await db`
+      INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id)
+      VALUES ('user', ${c.var.user.sub}, 'source.stop', 'source', ${id})
+    `.catch(() => {})
     return c.json(result)
   } catch (e) {
     throw AppError.internal(String(e))

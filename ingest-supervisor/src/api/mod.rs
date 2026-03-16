@@ -319,11 +319,20 @@ async fn create_route(
 
     state.routing.write().await.add_route(route.clone());
 
-    // Auto-start dest if source is active, using effective (aligned) port.
+    // Auto-start dest only when the source is already Active (has a live
+    // process) and has an effective port.  Skipping this when the source is
+    // Idle/Starting prevents starting a dest that has nowhere to connect.
     let (dest, source_port) = {
         let routing = state.routing.read().await;
         let dest = routing.dests.get(&dest_id).cloned();
-        let source_port = routing.effective_port_for_source(&source_id);
+        let source_active = routing.sources.get(&source_id)
+            .map(|s| s.status == SourceStatus::Active)
+            .unwrap_or(false);
+        let source_port = if source_active {
+            routing.effective_port_for_source(&source_id)
+        } else {
+            None
+        };
         (dest, source_port)
     };
 
@@ -440,6 +449,13 @@ async fn update_sync_group(
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
             .collect();
     }
+    // Allow the server to restore persisted aligned ports after a supervisor restart.
+    if let Some(obj) = body.get("aligned_ports").and_then(|v| v.as_object()) {
+        group.aligned_ports = obj.iter()
+            .filter_map(|(k, v)| v.as_u64().map(|p| (k.clone(), p as u16)))
+            .collect();
+        group.status = SyncGroupStatus::Active;
+    }
 
     let group = group.clone();
     (StatusCode::OK, Json(json!(group))).into_response()
@@ -509,7 +525,15 @@ async fn start_sync_group(State(state): State<ApiState>, Path(id): Path<String>)
         }
     }
 
-    Json(json!({"started": true})).into_response()
+    // Return aligned port assignments so the server can persist them.
+    let aligned_ports: std::collections::HashMap<String, u16> = {
+        let routing = state.routing.read().await;
+        routing.sync_groups.get(&id)
+            .map(|g| g.aligned_ports.clone())
+            .unwrap_or_default()
+    };
+
+    Json(json!({"started": true, "aligned_ports": aligned_ports})).into_response()
 }
 
 async fn stop_sync_group(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {

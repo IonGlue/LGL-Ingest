@@ -57,8 +57,8 @@ async function syncSupervisorStatus(state: AppState) {
   const ingest = new IngestClient(config.supervisor.api_url)
 
   const [sourcesRes, destsRes] = await Promise.all([
-    ingest.listSources() as Promise<{ sources: Array<{ id: string; status: string; process_pid: number | null; internal_port: number | null }> }>,
-    ingest.listDests()   as Promise<{ dests:   Array<{ id: string; status: string; process_pid: number | null }> }>,
+    ingest.listSources(),
+    ingest.listDests(),
   ])
 
   for (const s of sourcesRes.sources ?? []) {
