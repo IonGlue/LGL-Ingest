@@ -66,7 +66,7 @@ export default function App() {
       const config = await api.getConfig().catch(() => ({ local_login: true, portal_url: undefined }))
       if (!config.local_login && config.portal_url) {
         // Logto mode: redirect to the tenant portal
-        window.location.href = `${config.portal_url}?redirect_uri=${encodeURIComponent(window.location.href)}`
+        window.location.href = `${config.portal_url}?return_to=${encodeURIComponent(window.location.href)}`
         return
       }
       setLocalLogin(true)
