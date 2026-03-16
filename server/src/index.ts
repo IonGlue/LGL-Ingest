@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { cors } from 'hono/cors'
 import { Redis } from 'ioredis'
@@ -55,6 +56,10 @@ app.route('/api/sources', sourcesRouter)
 app.route('/api/destinations', destinationsRouter)
 app.route('/api/routing', routingRouter)
 app.route('/api/system', systemRouter)
+
+// Serve frontend static files and SPA fallback
+app.use('/*', serveStatic({ root: './public' }))
+app.get('/*', serveStatic({ path: 'index.html', root: './public' }))
 
 // Error handler
 app.onError((err, c) => errorHandler(err, c))
