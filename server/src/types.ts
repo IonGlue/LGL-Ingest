@@ -44,6 +44,8 @@ export interface UserClaims {
   type: string
   exp: number
   iat: number
+  /** Present only in Logto mode — carries orchestrate user data for auto-provisioning. */
+  _logto?: { id: string; email: string; display_name: string; role: string }
 }
 
 export interface DeviceClaims {
