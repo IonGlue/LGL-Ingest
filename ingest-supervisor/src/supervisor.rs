@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 
 use crate::config::Config;
 use crate::port_pool::PortPool;
-use crate::routing::{DestSlot, DestStatus, RoutingTable, SourceSlot, SourceStatus};
+use crate::routing::{DestSlot, DestStatus, RoutingSnapshot, RoutingTable, SourceSlot, SourceStatus, SyncGroup};
 
 #[derive(Debug)]
 pub struct WorkerHandle {
@@ -26,6 +26,7 @@ pub struct WorkerHandle {
 pub enum WorkerKind {
     Source,
     Dest,
+    Sync,
 }
 
 pub struct Supervisor {
@@ -142,6 +143,53 @@ impl Supervisor {
         Ok(())
     }
 
+    /// Spawn an `ingest-sync` worker for the given sync group.
+    ///
+    /// The caller must have already allocated aligned ports and populated
+    /// `group.aligned_ports` before calling this.
+    pub async fn start_sync_group(&mut self, group: &SyncGroup, routing: &RoutingSnapshot) -> Result<()> {
+        // Build the JSON config for the ingest-sync binary.
+        let streams: Vec<serde_json::Value> = group.source_ids.iter().filter_map(|sid| {
+            let source_port = routing.sources.get(sid)?.internal_port?;
+            let output_port = group.aligned_ports.get(sid)?;
+            Some(serde_json::json!({
+                "source_id": sid,
+                "source_port": source_port,
+                "output_port": output_port,
+            }))
+        }).collect();
+
+        let config = serde_json::json!({
+            "id": group.id,
+            "streams": streams,
+            "target_delay_ms": group.target_delay_ms,
+            "max_offset_ms": group.max_offset_ms,
+        });
+
+        let config_path = format!("/tmp/ingest-sync-{}.json", group.id);
+        std::fs::write(&config_path, serde_json::to_string(&config)?)?;
+
+        info!("starting sync worker: {} ({} streams, delay={}ms)",
+            group.id, streams.len(), group.target_delay_ms);
+
+        let child = tokio::process::Command::new(&self.config.sync_binary)
+            .arg(&config_path)
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .spawn()?;
+
+        self.workers.insert(group.id.clone(), WorkerHandle {
+            id: group.id.clone(),
+            kind: WorkerKind::Sync,
+            process: child,
+            restart_count: 0,
+            last_restart: None,
+            error: false,
+        });
+
+        Ok(())
+    }
+
     /// Stop a worker by ID.
     pub async fn stop_worker(&mut self, id: &str) {
         if let Some(mut handle) = self.workers.remove(id) {
@@ -241,7 +289,7 @@ impl Supervisor {
                 if let Some(dest) = routing_r.dests.get(id).cloned() {
                     let source_id = routing_r.source_for_dest(id);
                     let source_port = source_id.and_then(|sid| {
-                        routing_r.sources.get(&sid).and_then(|s| s.internal_port)
+                        routing_r.effective_port_for_source(&sid)
                     });
                     drop(routing_r);
                     if let Some(port) = source_port {
@@ -250,6 +298,15 @@ impl Supervisor {
                         }
                     } else {
                         warn!("cannot restart dest {id}: source not found or has no port");
+                    }
+                }
+            }
+            WorkerKind::Sync => {
+                if let Some(group) = routing_r.sync_groups.get(id).cloned() {
+                    let snapshot = routing_r.clone_for_sync();
+                    drop(routing_r);
+                    if let Err(e) = self.start_sync_group(&group, &snapshot).await {
+                        error!("failed to restart sync group {id}: {e}");
                     }
                 }
             }

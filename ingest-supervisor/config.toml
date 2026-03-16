@@ -1,5 +1,11 @@
+[supervisor]
 api_port            = 9000
 internal_port_start = 10000
 internal_port_end   = 11000
 max_restarts        = 5
 restart_window_secs = 60
+
+# Paths to worker binaries (overridable via env: INGEST_SOURCE_BIN, INGEST_DEST_BIN, INGEST_SYNC_BIN)
+# source_binary = "./ingest-source"
+# dest_binary   = "./ingest-dest"
+# sync_binary   = "./ingest-sync"

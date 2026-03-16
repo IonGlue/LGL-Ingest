@@ -8,6 +8,8 @@ pub struct Config {
     pub source_binary: String,
     #[serde(default)]
     pub dest_binary: String,
+    #[serde(default)]
+    pub sync_binary: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -50,6 +52,9 @@ impl Config {
         if config.dest_binary.is_empty() {
             config.dest_binary = "./ingest-dest".to_string();
         }
+        if config.sync_binary.is_empty() {
+            config.sync_binary = "./ingest-sync".to_string();
+        }
 
         // Env overrides
         if let Ok(v) = std::env::var("INGEST_SOURCE_BIN") {
@@ -57,6 +62,9 @@ impl Config {
         }
         if let Ok(v) = std::env::var("INGEST_DEST_BIN") {
             config.dest_binary = v;
+        }
+        if let Ok(v) = std::env::var("INGEST_SYNC_BIN") {
+            config.sync_binary = v;
         }
 
         Ok(config)
