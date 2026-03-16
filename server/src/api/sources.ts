@@ -34,7 +34,7 @@ app.post('/', async (c) => {
   const { db } = c.var.state
   const config = body.config ?? {}
 
-  const [source] = await db`
+  let [source] = await db`
     INSERT INTO sources (name, source_type, device_id, config, position_x, position_y)
     VALUES (
       ${body.name},
@@ -50,7 +50,20 @@ app.post('/', async (c) => {
   // Register with supervisor (skip for placeholder — no process needed)
   if (body.source_type !== 'placeholder') {
     try {
-      await client(c).createSource({ id: source.id, name: source.name, source_type: source.source_type, config })
+      const supervisorSource = await client(c).createSource({
+        id: source.id,
+        name: source.name,
+        source_type: source.source_type,
+        config,
+      }) as { internal_port?: number }
+      // Write the supervisor-assigned internal_port back to the DB so
+      // destinations and the UI can always find it without querying the supervisor.
+      if (supervisorSource?.internal_port != null) {
+        await c.var.state.db`
+          UPDATE sources SET internal_port = ${supervisorSource.internal_port} WHERE id = ${source.id}
+        `
+        source = { ...source, internal_port: supervisorSource.internal_port }
+      }
     } catch (e) {
       console.error('failed to register source with supervisor:', e)
     }

@@ -11,6 +11,7 @@ import { handleDeviceConnection } from './ws/handler.js'
 import { errorHandler } from './error.js'
 import type { AppEnv, AppState } from './types.js'
 import { startJobs } from './jobs/index.js'
+import { IngestClient } from './ingest/client.js'
 
 import authRouter from './api/auth.js'
 import usersRouter from './api/users.js'
@@ -85,6 +86,10 @@ app.get(
   })),
 )
 
+// Hydrate the supervisor with persisted state so sources/dests/routes that
+// existed before a restart are immediately known to the supervisor process.
+hydrateIngestSupervisor(state).catch((e) => console.error('supervisor hydration error:', e))
+
 // Background jobs
 const stopJobs = startJobs(state)
 
@@ -105,3 +110,52 @@ const server = serve(
 )
 
 injectWebSocket(server)
+
+/**
+ * Re-register all persisted sources, destinations, and routes with the
+ * supervisor process.  Called once at startup so that a supervisor restart
+ * (or server restart) doesn't leave the supervisor with an empty routing
+ * table while the DB still has resources defined.
+ */
+async function hydrateIngestSupervisor(appState: AppState) {
+  const { db, config: cfg } = appState
+  const ingest = new IngestClient(cfg.supervisor.api_url)
+
+  const [sources, dests, routes] = await Promise.all([
+    db`SELECT id, name, source_type, config, internal_port, position_x, position_y
+       FROM sources WHERE source_type != 'placeholder'`,
+    db`SELECT id, name, dest_type, config, position_x, position_y
+       FROM destinations WHERE dest_type != 'placeholder'`,
+    db`SELECT id, source_id, dest_id FROM routing WHERE enabled = true`,
+  ])
+
+  // Register sources first (supervisor allocates internal ports)
+  for (const s of sources) {
+    try {
+      const res = await ingest.createSource({
+        id: s.id, name: s.name, source_type: s.source_type,
+        config: s.config, position_x: s.position_x, position_y: s.position_y,
+      }) as { internal_port?: number }
+      if (res?.internal_port != null && res.internal_port !== s.internal_port) {
+        await db`UPDATE sources SET internal_port = ${res.internal_port} WHERE id = ${s.id}`
+      }
+    } catch { /* supervisor may already know about this source */ }
+  }
+
+  for (const d of dests) {
+    try {
+      await ingest.createDest({
+        id: d.id, name: d.name, dest_type: d.dest_type,
+        config: d.config, position_x: d.position_x, position_y: d.position_y,
+      })
+    } catch { /* supervisor may already know about this dest */ }
+  }
+
+  for (const r of routes) {
+    try {
+      await ingest.createRoute({ source_id: r.source_id, dest_id: r.dest_id })
+    } catch { /* route may already exist */ }
+  }
+
+  console.log(`supervisor hydrated: ${sources.length} sources, ${dests.length} dests, ${routes.length} routes`)
+}
