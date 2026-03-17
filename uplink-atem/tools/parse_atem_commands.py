@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """
-parse_atem_commands.py — Extract and display ATEM commands from binary init dumps or proxy logs.
+parse_atem_commands.py — Extract and display ATEM commands from multiple sources.
+
+Supported input formats:
+  .bin   — raw BMDP binary dump (our captures, Constellation 4K, etc.)
+  .data  — sofie-atem-connection format: newline-separated hex strings, one per packet payload
+             (reference captures from nrkno/sofie-atem-connection, real hardware, fw v7.2-v10.1.1)
+  .txt   — proxy log text (debug_proxy_log.txt)
 
 Usage:
-  # Dump all commands from a binary init dump
-  python3 parse_atem_commands.py dump ATEM_2_M_E_Constellation_4K.bin
+  # Dump all commands from a reference data file
+  python3 parse_atem_commands.py dump atem_dumps/reference/tvshd-v8.1.0.data
 
   # Dump specific commands only
   python3 parse_atem_commands.py dump active_dump_85830.bin --cmd PrvI TlIn PrgI TlSr
 
-  # Parse a proxy log text file and extract commands
-  python3 parse_atem_commands.py log debug_proxy_log.txt --cmd PrvI TlIn
-
-  # Compare two dumps — show differing commands side by side
-  python3 parse_atem_commands.py diff file1.bin file2.bin
+  # Compare two captures byte-for-byte
+  python3 parse_atem_commands.py diff tvshd-v8.1.0.data active_dump_85830.bin --cmd PrvI TlIn
 """
 
 import sys
@@ -102,6 +105,26 @@ def parse_binary_dump(data: bytes) -> list[AtemCommand]:
     return commands
 
 
+def parse_sofie_data(text: str) -> list[AtemCommand]:
+    """
+    Parse a .data file from nrkno/sofie-atem-connection.
+    Format: each line is a hex string (no spaces) representing one packet's command payload.
+    The hex is the raw command stream AFTER the 12-byte BMDP packet header is stripped.
+    """
+    commands = []
+    for i, line in enumerate(text.splitlines()):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        try:
+            payload = bytes.fromhex(line)
+        except ValueError:
+            continue
+        for cmd in parse_commands_from_payload(payload, packet_seq=i):
+            commands.append(cmd)
+    return commands
+
+
 # ---------------------------------------------------------------------------
 # Proxy log parser
 # Lines expected to look like either:
@@ -172,16 +195,25 @@ def parse_proxy_log(text: str, atem_only: bool = True) -> list[AtemCommand]:
 # CLI commands
 # ---------------------------------------------------------------------------
 
+def load_any(path_str: str) -> list[AtemCommand]:
+    """Load commands from any supported file type."""
+    path = Path(path_str)
+    if not path.exists():
+        sys.exit(f"ERROR: {path} not found")
+    if path.suffix == '.data':
+        return parse_sofie_data(path.read_text(errors='replace'))
+    if path.suffix == '.txt':
+        return parse_proxy_log(path.read_text(errors='replace'))
+    return parse_binary_dump(path.read_bytes())
+
+
 def cmd_dump(args):
     path = Path(args.file)
     if not path.exists():
         print(f"ERROR: {path} not found", file=sys.stderr)
         sys.exit(1)
 
-    if path.suffix == '.txt':
-        commands = parse_proxy_log(path.read_text(errors='replace'))
-    else:
-        commands = parse_binary_dump(path.read_bytes())
+    commands = load_any(args.file)
 
     filter_names = set(args.cmd) if args.cmd else None
 
@@ -200,13 +232,10 @@ def cmd_dump(args):
 
 def cmd_diff(args):
     def load(path_str):
-        p = Path(path_str)
-        if p.suffix == '.txt':
-            return parse_proxy_log(p.read_text(errors='replace'))
-        return parse_binary_dump(p.read_bytes())
+        return {c.name: c for c in load_any(path_str)}
 
-    a_cmds = {c.name: c for c in load(args.file_a)}
-    b_cmds = {c.name: c for c in load(args.file_b)}
+    a_cmds = load(args.file_a)
+    b_cmds = load(args.file_b)
 
     filter_names = set(args.cmd) if args.cmd else (set(a_cmds) | set(b_cmds))
 

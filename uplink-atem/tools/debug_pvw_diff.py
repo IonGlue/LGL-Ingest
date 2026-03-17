@@ -29,7 +29,7 @@ from pathlib import Path
 
 # Import the shared parsing library
 sys.path.insert(0, str(Path(__file__).parent))
-from parse_atem_commands import parse_binary_dump, parse_proxy_log, AtemCommand
+from parse_atem_commands import load_any, AtemCommand
 
 
 # ---------------------------------------------------------------------------
@@ -139,15 +139,8 @@ def decode_command(cmd: AtemCommand) -> None:
 # ---------------------------------------------------------------------------
 
 def cmd_real(args):
-    """Show real ATEM's PVW-related commands from proxy log."""
-    path = Path(args.file)
-    if not path.exists():
-        sys.exit(f"ERROR: {path} not found")
-
-    if path.suffix == '.txt':
-        commands = parse_proxy_log(path.read_text(errors='replace'))
-    else:
-        commands = parse_binary_dump(path.read_bytes())
+    """Show real ATEM's PVW-related commands from proxy log or reference data."""
+    commands = load_any(args.file)
 
     target = set(args.cmd) if args.cmd else set(PVW_COMMANDS)
     found = {name: [] for name in target}
@@ -172,12 +165,7 @@ def cmd_real(args):
 def cmd_diff(args):
     """Byte-for-byte diff of PVW commands between real and emulator captures."""
     def load(p: str):
-        path = Path(p)
-        if not path.exists():
-            sys.exit(f"ERROR: {path} not found")
-        if path.suffix == '.txt':
-            return {c.name: c for c in parse_proxy_log(path.read_text(errors='replace'))}
-        return {c.name: c for c in parse_binary_dump(path.read_bytes())}
+        return {c.name: c for c in load_any(p)}
 
     real = load(args.real)
     emu  = load(args.emulator)
