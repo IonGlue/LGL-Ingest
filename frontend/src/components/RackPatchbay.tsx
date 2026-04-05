@@ -18,6 +18,8 @@ import {
 import { api, type Source, type Destination, type Route } from '../api.js'
 import AddSourcePanel from './AddSourcePanel.js'
 import AddDestPanel from './AddDestPanel.js'
+import EditSourceModal from './EditSourceModal.js'
+import EditDestModal from './EditDestModal.js'
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 
@@ -440,6 +442,8 @@ export default function RackPatchbay() {
   const [showAddDest, setShowAddDest] = useState(false)
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null)
   const [routeLines, setRouteLines] = useState<RouteLine[]>([])
+  const [editSource, setEditSource] = useState<Source | null>(null)
+  const [editDest, setEditDest] = useState<Destination | null>(null)
 
   const mainRef = useRef<HTMLDivElement>(null)
   const leftColRef = useRef<HTMLDivElement>(null)
@@ -527,18 +531,27 @@ export default function RackPatchbay() {
 
   const handleSourceClick = useCallback((src: Source) => {
     if (src.source_type === 'placeholder') return
-    setSelectedSourceId(id => id === src.id ? null : src.id)
-  }, [])
+    if (selectedSourceId === src.id) {
+      setSelectedSourceId(null)
+      setEditSource(src)
+    } else {
+      setSelectedSourceId(src.id)
+    }
+  }, [selectedSourceId])
 
   const handleDestClick = useCallback(async (dest: Destination) => {
-    if (!selectedSourceId || dest.dest_type === 'placeholder') return
-    try {
-      const route = await api.createRoute(selectedSourceId, dest.id)
-      setRoutes(rs => [...rs, route])
-    } catch (e) {
-      console.error('failed to create route:', e)
-    } finally {
-      setSelectedSourceId(null)
+    if (dest.dest_type === 'placeholder') return
+    if (selectedSourceId) {
+      try {
+        const route = await api.createRoute(selectedSourceId, dest.id)
+        setRoutes(rs => [...rs, route])
+      } catch (e) {
+        console.error('failed to create route:', e)
+      } finally {
+        setSelectedSourceId(null)
+      }
+    } else {
+      setEditDest(dest)
     }
   }, [selectedSourceId])
 
@@ -817,6 +830,20 @@ export default function RackPatchbay() {
         <AddDestPanel
           onClose={() => setShowAddDest(false)}
           onAdded={dest => { setDests(d => [...d, dest]); setShowAddDest(false) }}
+        />
+      )}
+      {editSource && (
+        <EditSourceModal
+          source={editSource}
+          onClose={() => setEditSource(null)}
+          onUpdated={() => { load(); setEditSource(null) }}
+        />
+      )}
+      {editDest && (
+        <EditDestModal
+          dest={editDest}
+          onClose={() => setEditDest(null)}
+          onUpdated={() => { load(); setEditDest(null) }}
         />
       )}
     </div>
