@@ -13,6 +13,7 @@ struct SourceConfig {
     test_pattern: Option<TestPatternConfig>,
     srt_listen: Option<SrtListenConfig>,
     srt_pull: Option<SrtPullConfig>,
+    rtmp_listen: Option<RtmpListenConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -68,6 +69,14 @@ pub struct SrtPullConfig {
     pub passphrase: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct RtmpListenConfig {
+    pub port: u16,
+    pub stream_key: String,
+    #[serde(default = "default_latency")]
+    pub latency_ms: u32,
+}
+
 fn default_pattern() -> String { "smpte".to_string() }
 fn default_width() -> u32 { 1920 }
 fn default_height() -> u32 { 1080 }
@@ -114,6 +123,10 @@ async fn main() -> Result<()> {
         "srt_pull" => {
             let sp = config.srt_pull.context("srt_pull config missing")?;
             sources::srt_pull::run(config.id, config.internal_port, sp).await
+        }
+        "rtmp_listen" => {
+            let rl = config.rtmp_listen.context("rtmp_listen config missing")?;
+            sources::rtmp_listen::run(config.id, config.internal_port, rl).await
         }
         other => anyhow::bail!("unknown source_type: {other}"),
     }
