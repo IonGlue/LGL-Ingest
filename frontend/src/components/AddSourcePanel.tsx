@@ -2,6 +2,7 @@ import { useState, useEffect, FormEvent } from 'react'
 import { api, type Source, type Device } from '../api.js'
 
 const SOURCE_TYPES = [
+  { value: 'rtmp_listen', label: 'RTMP Listen (inbound)', fields: ['port'] },
   { value: 'encoder', label: 'Encoder (SRTLA)', fields: [] },
   { value: 'srt_listen', label: 'SRT Listen (inbound)', fields: ['port', 'latency_ms'] },
   { value: 'srt_pull', label: 'SRT Pull (outbound)', fields: ['host', 'port', 'latency_ms'] },
@@ -11,6 +12,7 @@ const SOURCE_TYPES = [
 ]
 
 const DEFAULTS: Record<string, Record<string, string>> = {
+  rtmp_listen: { port: '1935' },
   srt_listen: { port: '5100', latency_ms: '200' },
   srt_pull: { host: '', port: '9999', latency_ms: '200' },
   rtmp_pull: { url: '' },

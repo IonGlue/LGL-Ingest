@@ -54,6 +54,7 @@ const SRC_ICONS: Record<string, LucideIcon> = {
   srt_listen:   Signal,
   srt_pull:     Link,
   rtmp_pull:    Tv,
+  rtmp_listen:  Tv,
   test_pattern: Sliders,
   placeholder:  CircleDashed,
 }
