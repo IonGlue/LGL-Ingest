@@ -36,6 +36,7 @@ export const api = {
   deleteSource: (id: string) => request<void>('DELETE', `/sources/${id}`),
   startSource: (id: string) => request<unknown>('POST', `/sources/${id}/start`),
   stopSource: (id: string) => request<unknown>('POST', `/sources/${id}/stop`),
+  getIngestUrl: (id: string) => request<{ ingest_url: string; source_type: string; config: Record<string, unknown> }>('GET', `/sources/${id}/ingest-url`),
 
   // Destinations
   getDests: () => request<Destination[]>('GET', '/destinations'),

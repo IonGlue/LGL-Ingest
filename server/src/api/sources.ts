@@ -4,7 +4,7 @@ import { AppError } from '../error.js'
 import { authMiddleware, requireOperatorOrAbove } from '../auth/middleware.js'
 import { IngestClient } from '../ingest/client.js'
 
-const VALID_SOURCE_TYPES = ['encoder', 'srt_listen', 'srt_pull', 'test_pattern', 'placeholder']
+const VALID_SOURCE_TYPES = ['encoder', 'srt_listen', 'srt_pull', 'rtmp_pull', 'rtmp_listen', 'test_pattern', 'placeholder']
 
 const app = new Hono<AppEnv>()
 
@@ -32,7 +32,13 @@ app.post('/', async (c) => {
   }
 
   const { db } = c.var.state
-  const config = body.config ?? {}
+  const config: Record<string, unknown> = body.config ?? {}
+
+  // Auto-generate stream key for RTMP listen sources
+  if (body.source_type === 'rtmp_listen' && !config.stream_key) {
+    config.stream_key = crypto.randomUUID()
+    config.auto_generated_key = true
+  }
 
   let [source] = await db`
     INSERT INTO sources (name, source_type, device_id, config, position_x, position_y)
@@ -89,7 +95,15 @@ app.patch('/:id', async (c) => {
 
   if (body.name != null) await db`UPDATE sources SET name = ${body.name} WHERE id = ${id}`
   if (body.device_id !== undefined) await db`UPDATE sources SET device_id = ${body.device_id} WHERE id = ${id}`
-  if (body.config != null) await db`UPDATE sources SET config = ${JSON.stringify(body.config)} WHERE id = ${id}`
+  if (body.config != null) {
+    const newConfig = body.config as Record<string, unknown>
+    if (newConfig.regenerate_key) {
+      newConfig.stream_key = crypto.randomUUID()
+      newConfig.auto_generated_key = true
+      delete newConfig.regenerate_key
+    }
+    await db`UPDATE sources SET config = ${JSON.stringify(newConfig)} WHERE id = ${id}`
+  }
   if (body.position_x != null) await db`UPDATE sources SET position_x = ${body.position_x} WHERE id = ${id}`
   if (body.position_y != null) await db`UPDATE sources SET position_y = ${body.position_y} WHERE id = ${id}`
 
@@ -151,6 +165,34 @@ app.post('/:id/stop', async (c) => {
   } catch (e) {
     throw AppError.internal(String(e))
   }
+})
+
+app.get('/:id/ingest-url', async (c) => {
+  const [source] = await c.var.state.db`SELECT * FROM sources WHERE id = ${c.req.param('id')}`
+  if (!source) throw AppError.notFound()
+
+  const host = c.req.header('host') ?? 'localhost'
+  const baseHost = host.split(':')[0]
+  const config = source.config as Record<string, unknown>
+
+  let ingest_url = ''
+  switch (source.source_type) {
+    case 'rtmp_listen': {
+      const port = config.port ?? 1935
+      const key = config.stream_key ?? ''
+      ingest_url = `rtmp://${baseHost}:${port}/live/${key}`
+      break
+    }
+    case 'srt_listen': {
+      const port = config.port ?? source.internal_port
+      ingest_url = `srt://${baseHost}:${port}`
+      break
+    }
+    default:
+      ingest_url = ''
+  }
+
+  return c.json({ ingest_url, source_type: source.source_type, config })
 })
 
 export default app
