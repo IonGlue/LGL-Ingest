@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { api } from './api.js'
 import Login from './components/Login.js'
 import RackPatchbay from './components/RackPatchbay.js'
-import Redistribute from './components/Redistribute.js'
+import IngestView from './components/IngestView.js'
+import DestinationsView from './components/DestinationsView.js'
 
-type View = 'rack' | 'redistribute'
+type View = 'rack' | 'ingest' | 'destinations'
 
 const NAV_STYLE: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 0,
@@ -42,7 +43,6 @@ export default function App() {
   const [view, setView] = useState<View>('rack')
 
   useEffect(() => {
-    // Pick up ?token= injected by the portal and persist it
     const params = new URLSearchParams(window.location.search)
     const urlToken = params.get('token')
     if (urlToken) {
@@ -51,7 +51,6 @@ export default function App() {
     }
 
     async function init() {
-      // If we already have a token, try to verify it first
       if (localStorage.getItem('token')) {
         try {
           await api.me()
@@ -62,10 +61,8 @@ export default function App() {
         }
       }
 
-      // No valid token — check which auth mode is active
       const config = await api.getConfig().catch(() => ({ local_login: true, portal_url: undefined }))
       if (!config.local_login && config.portal_url) {
-        // Logto mode: redirect to the tenant portal
         window.location.href = `${config.portal_url}?return_to=${encodeURIComponent(window.location.href)}`
         return
       }
@@ -80,16 +77,17 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#FAFAFA' }}>
-      {/* Top nav */}
       <div style={NAV_STYLE}>
         <span style={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E', marginRight: 16, fontFamily: 'Syne, sans-serif' }}>LGL Ingest</span>
         <NavBtn label="Rack" active={view === 'rack'} onClick={() => setView('rack')} />
-        <NavBtn label="Redistribute" active={view === 'redistribute'} onClick={() => setView('redistribute')} />
+        <NavBtn label="Ingest" active={view === 'ingest'} onClick={() => setView('ingest')} />
+        <NavBtn label="Destinations" active={view === 'destinations'} onClick={() => setView('destinations')} />
       </div>
 
-      {/* View */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {view === 'rack' ? <RackPatchbay /> : <Redistribute />}
+        {view === 'rack' && <RackPatchbay />}
+        {view === 'ingest' && <IngestView />}
+        {view === 'destinations' && <DestinationsView />}
       </div>
     </div>
   )
