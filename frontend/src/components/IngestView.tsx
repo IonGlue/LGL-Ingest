@@ -68,14 +68,16 @@ function maskStreamKey(key: string): string {
 
 function buildIngestUrl(src: Source): string {
   const cfg = src.config
+  const host = window.location.hostname || 'localhost'
   if (src.source_type === 'rtmp_listen') {
     const port = cfg.port ?? 1935
     const key = cfg.stream_key ?? ''
-    return `rtmp://<host>:${port}/live/${key}`
+    return `rtmp://${host}:${port}/live/${key}`
   }
   if (src.source_type === 'srt_listen') {
     const port = cfg.port ?? src.internal_port
-    return `srt://<host>:${port}`
+    if (port == null) return 'srt://— port pending (start source first)'
+    return `srt://${host}:${port}`
   }
   return ''
 }

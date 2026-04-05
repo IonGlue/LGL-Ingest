@@ -36,9 +36,10 @@ export default function EditSourceModal({ source, onClose, onUpdated, onNavigate
   const streamKey = (source.config.stream_key as string) ?? ''
   const port = (source.config.port as number) ?? source.internal_port ?? ''
 
+  const host = window.location.hostname || 'localhost'
   let ingestUrl = ''
-  if (isRtmp) ingestUrl = `rtmp://<host>:${port}/live/${streamKey}`
-  else if (isSrt) ingestUrl = `srt://<host>:${port}`
+  if (isRtmp) ingestUrl = `rtmp://${host}:${port}/live/${streamKey}`
+  else if (isSrt) ingestUrl = port ? `srt://${host}:${port}` : 'srt://— port pending (start source first)'
 
   async function saveName() {
     if (name === source.name) return
