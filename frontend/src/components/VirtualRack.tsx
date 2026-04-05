@@ -17,11 +17,11 @@ import AddDestPanel from './AddDestPanel.js'
 // ── Status helpers ──────────────────────────────────────────────────────────
 
 const STATUS_DOT: Record<string, string> = {
-  active: '#22c55e',
-  waiting: '#eab308',
-  error: '#ef4444',
-  idle: '#475569',
-  placeholder: '#2d3348',
+  active: '#10B981',
+  waiting: '#F59E0B',
+  error: '#EF4444',
+  idle: '#8E8E9F',
+  placeholder: '#E5E5EA',
 }
 
 const TYPE_ICON: Record<string, LucideIcon> = {
@@ -39,7 +39,7 @@ const TYPE_ICON: Record<string, LucideIcon> = {
 }
 
 function dot(status: string) {
-  const color = STATUS_DOT[status] ?? '#475569'
+  const color = STATUS_DOT[status] ?? '#8E8E9F'
   return (
     <span style={{
       display: 'inline-block', width: 8, height: 8,
@@ -54,7 +54,7 @@ function SlotNumber({ n }: { n: number }) {
   return (
     <span style={{
       display: 'inline-block', width: 28, textAlign: 'right',
-      fontSize: 11, color: '#475569', fontVariantNumeric: 'tabular-nums',
+      fontSize: 11, color: '#8E8E9F', fontVariantNumeric: 'tabular-nums',
       flexShrink: 0, userSelect: 'none',
     }}>
       {String(n).padStart(2, '0')}
@@ -74,7 +74,7 @@ interface SourceRowProps {
 function SourceRow({ slot, src, routes, onDelete, onStart, onStop }: SourceRowProps) {
   const myRoutes = routes.filter(r => r.source_id === src.id)
   const isPlaceholder = src.source_type === 'placeholder'
-  const dotColor = STATUS_DOT[src.status] ?? '#475569'
+  const dotColor = STATUS_DOT[src.status] ?? '#8E8E9F'
   const SrcIcon = TYPE_ICON[src.source_type] ?? Radio
   const isActive = src.status === 'active'
 
@@ -82,8 +82,8 @@ function SourceRow({ slot, src, routes, onDelete, onStart, onStop }: SourceRowPr
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
       padding: '8px 12px',
-      background: '#1a1e2a',
-      border: `1px solid ${isPlaceholder ? '#2d3348' : '#2a3050'}`,
+      background: '#FFFFFF',
+      border: `1px solid ${isPlaceholder ? '#E5E5EA' : '#E5E5EA'}`,
       borderStyle: isPlaceholder ? 'dashed' : 'solid',
       borderRadius: 6,
       minHeight: 48,
@@ -92,12 +92,12 @@ function SourceRow({ slot, src, routes, onDelete, onStart, onStop }: SourceRowPr
       {dot(src.status)}
       <SrcIcon size={14} color="#8E8E9F" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {src.name}
         </div>
-        <div style={{ fontSize: 11, color: '#64748b', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 1 }}>
+        <div style={{ fontSize: 11, color: '#555566', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 1 }}>
           <span style={{ textTransform: 'uppercase' }}>{src.source_type.replace('_', ' ')}</span>
-          {src.device_id && <span style={{ color: '#475569' }}>↔ {src.device_id.slice(0, 16)}</span>}
+          {src.device_id && <span style={{ color: '#8E8E9F' }}>↔ {src.device_id.slice(0, 16)}</span>}
           {src.internal_port && <span>:{src.internal_port}</span>}
         </div>
       </div>
@@ -115,7 +115,7 @@ function SourceRow({ slot, src, routes, onDelete, onStart, onStop }: SourceRowPr
           </span>
         ))}
         {myRoutes.length === 0 && !isPlaceholder && (
-          <span style={{ fontSize: 10, color: '#2d3348' }}>unrouted</span>
+          <span style={{ fontSize: 10, color: '#E5E5EA' }}>unrouted</span>
         )}
       </div>
 
@@ -123,13 +123,13 @@ function SourceRow({ slot, src, routes, onDelete, onStart, onStop }: SourceRowPr
       {!isPlaceholder && (
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           {isActive ? (
-            <ActionBtn onClick={() => onStop(src.id)} label="Stop" color="#64748b" />
+            <ActionBtn onClick={() => onStop(src.id)} label="Stop" color="#555566" />
           ) : (
-            <ActionBtn onClick={() => onStart(src.id)} label="Start" color="#3b82f6" />
+            <ActionBtn onClick={() => onStart(src.id)} label="Start" color="#8B5CF6" />
           )}
         </div>
       )}
-      <ActionBtn onClick={() => onDelete(src.id)} label="✕" color="#ef444480" />
+      <ActionBtn onClick={() => onDelete(src.id)} label="✕" color="#EF444480" />
     </div>
   )
 }
@@ -148,14 +148,14 @@ function DestRow({ slot, dest, routes, onDelete, onStart, onStop }: DestRowProps
   const isPlaceholder = dest.dest_type === 'placeholder'
   const DstIcon = TYPE_ICON[dest.dest_type] ?? Tv
   const isActive = dest.status === 'active'
-  const dotColor = STATUS_DOT[dest.status] ?? '#475569'
+  const dotColor = STATUS_DOT[dest.status] ?? '#8E8E9F'
 
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
       padding: '8px 12px',
-      background: '#1a1e2a',
-      border: `1px solid ${isPlaceholder ? '#2d3348' : '#1a3040'}`,
+      background: '#FFFFFF',
+      border: `1px solid ${isPlaceholder ? '#E5E5EA' : '#E5E5EA'}`,
       borderStyle: isPlaceholder ? 'dashed' : 'solid',
       borderRadius: 6,
       minHeight: 48,
@@ -164,10 +164,10 @@ function DestRow({ slot, dest, routes, onDelete, onStart, onStop }: DestRowProps
       {dot(dest.status)}
       <DstIcon size={14} color="#8E8E9F" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {dest.name}
         </div>
-        <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginTop: 1 }}>
+        <div style={{ fontSize: 11, color: '#555566', textTransform: 'uppercase', marginTop: 1 }}>
           {dest.dest_type.replace('_', ' ')}
         </div>
       </div>
@@ -185,7 +185,7 @@ function DestRow({ slot, dest, routes, onDelete, onStart, onStop }: DestRowProps
           </span>
         ))}
         {myRoutes.length === 0 && !isPlaceholder && (
-          <span style={{ fontSize: 10, color: '#2d3348' }}>unrouted</span>
+          <span style={{ fontSize: 10, color: '#E5E5EA' }}>unrouted</span>
         )}
       </div>
 
@@ -193,13 +193,13 @@ function DestRow({ slot, dest, routes, onDelete, onStart, onStop }: DestRowProps
       {!isPlaceholder && (
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           {isActive ? (
-            <ActionBtn onClick={() => onStop(dest.id)} label="Stop" color="#64748b" />
+            <ActionBtn onClick={() => onStop(dest.id)} label="Stop" color="#555566" />
           ) : (
-            <ActionBtn onClick={() => onStart(dest.id)} label="Start" color="#047857" />
+            <ActionBtn onClick={() => onStart(dest.id)} label="Start" color="#8B5CF6" />
           )}
         </div>
       )}
-      <ActionBtn onClick={() => onDelete(dest.id)} label="✕" color="#ef444480" />
+      <ActionBtn onClick={() => onDelete(dest.id)} label="✕" color="#EF444480" />
     </div>
   )
 }
@@ -225,8 +225,8 @@ function ColumnHeader({ title, count, color, onAdd }: { title: string; count: nu
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
       <div style={{ width: 3, height: 18, background: color, borderRadius: 2, flexShrink: 0 }} />
-      <span style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: 1 }}>{title}</span>
-      <span style={{ fontSize: 11, color: '#475569', background: '#1a1e2a', padding: '1px 7px', borderRadius: 10, border: '1px solid #2d3348' }}>{count}</span>
+      <span style={{ fontWeight: 700, fontSize: 13, color: '#1A1A2E', textTransform: 'uppercase', letterSpacing: 1 }}>{title}</span>
+      <span style={{ fontSize: 11, color: '#8E8E9F', background: '#FFFFFF', padding: '1px 7px', borderRadius: 10, border: '1px solid #E5E5EA' }}>{count}</span>
       <button
         onClick={onAdd}
         style={{ marginLeft: 'auto', background: color + '20', border: `1px solid ${color}60`, borderRadius: 4, padding: '3px 10px', color, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
@@ -299,20 +299,20 @@ export default function VirtualRack() {
   const activeSources = sources.filter(s => s.status === 'active').length
   const activeDests = dests.filter(d => d.status === 'active').length
 
-  if (loading) return <div style={{ padding: '2rem', color: '#94a3b8' }}>Loading rack...</div>
+  if (loading) return <div style={{ padding: '2rem', color: '#8E8E9F' }}>Loading rack...</div>
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0f1117' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#FAFAFA' }}>
       {/* Stats bar */}
-      <div style={{ padding: '8px 20px', background: '#141722', borderBottom: '1px solid #2d3348', display: 'flex', gap: 20, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: '#64748b' }}>
-          <span style={{ color: '#22c55e', fontWeight: 600 }}>{activeSources}</span>/{sources.length} sources active
+      <div style={{ padding: '8px 20px', background: '#FFFFFF', borderBottom: '1px solid #E5E5EA', display: 'flex', gap: 20, alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: '#555566' }}>
+          <span style={{ color: '#10B981', fontWeight: 600 }}>{activeSources}</span>/{sources.length} sources active
         </span>
-        <span style={{ fontSize: 12, color: '#64748b' }}>
-          <span style={{ color: '#22c55e', fontWeight: 600 }}>{activeDests}</span>/{dests.length} destinations active
+        <span style={{ fontSize: 12, color: '#555566' }}>
+          <span style={{ color: '#10B981', fontWeight: 600 }}>{activeDests}</span>/{dests.length} destinations active
         </span>
-        <span style={{ fontSize: 12, color: '#64748b' }}>
-          <span style={{ color: '#94a3b8', fontWeight: 600 }}>{routes.length}</span> routes
+        <span style={{ fontSize: 12, color: '#555566' }}>
+          <span style={{ color: '#8E8E9F', fontWeight: 600 }}>{routes.length}</span> routes
         </span>
       </div>
 
@@ -320,16 +320,16 @@ export default function VirtualRack() {
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, overflow: 'hidden' }}>
 
         {/* Sources column */}
-        <div style={{ borderRight: '1px solid #1e2130', overflow: 'auto', padding: '20px 16px 20px 20px' }}>
+        <div style={{ borderRight: '1px solid #E5E5EA', overflow: 'auto', padding: '20px 16px 20px 20px' }}>
           <ColumnHeader
             title="Sources"
             count={sources.length}
-            color="#3b82f6"
+            color="#8B5CF6"
             onAdd={() => setShowAddSource(true)}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {sources.length === 0 && (
-              <div style={{ padding: '24px 0', textAlign: 'center', color: '#475569', fontSize: 13 }}>
+              <div style={{ padding: '24px 0', textAlign: 'center', color: '#8E8E9F', fontSize: 13 }}>
                 No sources yet — add one above
               </div>
             )}
@@ -352,12 +352,12 @@ export default function VirtualRack() {
           <ColumnHeader
             title="Destinations"
             count={dests.length}
-            color="#047857"
+            color="#8B5CF6"
             onAdd={() => setShowAddDest(true)}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {dests.length === 0 && (
-              <div style={{ padding: '24px 0', textAlign: 'center', color: '#475569', fontSize: 13 }}>
+              <div style={{ padding: '24px 0', textAlign: 'center', color: '#8E8E9F', fontSize: 13 }}>
                 No destinations yet — add one above
               </div>
             )}

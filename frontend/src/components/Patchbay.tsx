@@ -134,25 +134,25 @@ export default function Patchbay() {
     setNodes(ns => [...ns, destToNode(dest)])
   }, [setNodes])
 
-  if (loading) return <div style={{ padding: '2rem', color: '#94a3b8' }}>Loading patchbay...</div>
+  if (loading) return <div style={{ padding: '2rem', color: '#8E8E9F' }}>Loading patchbay...</div>
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0f1117' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#FAFAFA' }}>
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 20px', borderBottom: '1px solid #2d3348', background: '#141722' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 20px', borderBottom: '1px solid #E5E5EA', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)' }}>
         <button
           onClick={() => setShowAddSource(true)}
-          style={{ background: '#1d4ed8', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', fontSize: 13, cursor: 'pointer' }}
+          style={{ background: '#8B5CF6', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
         >
           + Source
         </button>
         <button
           onClick={() => setShowAddDest(true)}
-          style={{ background: '#047857', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', fontSize: 13, cursor: 'pointer' }}
+          style={{ background: '#8B5CF6', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
         >
           + Destination
         </button>
-        <span style={{ fontSize: 12, color: '#64748b', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 12, color: '#8E8E9F', marginLeft: 'auto' }}>
           {nodes.filter(n => n.id.startsWith('src-')).length} sources · {nodes.filter(n => n.id.startsWith('dst-')).length} destinations · {edges.length} routes
         </span>
       </div>
@@ -170,10 +170,10 @@ export default function Patchbay() {
           edgeTypes={EDGE_TYPES}
           fitView
           proOptions={{ hideAttribution: true }}
-          style={{ background: '#0f1117' }}
+          style={{ background: '#FAFAFA' }}
         >
-          <Background color="#1e2130" variant={BackgroundVariant.Dots} />
-          <Controls style={{ background: '#1e2130', border: '1px solid #2d3348' }} />
+          <Background color="#E5E5EA" variant={BackgroundVariant.Dots} />
+          <Controls style={{ background: '#FFFFFF', border: '1px solid #E5E5EA', borderRadius: 6, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }} />
         </ReactFlow>
       </div>
 

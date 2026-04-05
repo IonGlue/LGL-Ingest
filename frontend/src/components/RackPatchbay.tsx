@@ -22,23 +22,23 @@ import AddDestPanel from './AddDestPanel.js'
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 
 const C = {
-  base:       '#141418',
-  panel:      '#1E1E2A',
-  raised:     '#282838',
-  elevated:   '#323244',
-  textPrimary:'#EEEEF2',
-  textSub:    '#8E8E9F',
-  textMuted:  '#555566',
+  base:       '#FAFAFA',
+  panel:      '#FFFFFF',
+  raised:     '#E5E5EA',
+  elevated:   '#D1D1D6',
+  textPrimary:'#1A1A2E',
+  textSub:    '#555566',
+  textMuted:  '#8E8E9F',
   violet:     '#8B5CF6',
   live:       '#10B981',
   warning:    '#F59E0B',
   error:      '#EF4444',
-  // Rack-specific tones
-  chassis:    '#0C0C16',   // outer rack body
-  rackFace:   '#1A1A28',   // slot faceplate dark
-  rackFaceTop:'#222236',   // faceplate gradient top
-  rail:       '#111120',   // mounting strip
-  screwRim:   '#252538',   // screw hole border
+  // Rack-specific tones (light mode)
+  chassis:    '#E8E8ED',   // outer rack body
+  rackFace:   '#FFFFFF',   // slot faceplate
+  rackFaceTop:'#F5F5F8',   // faceplate gradient top
+  rail:       '#EDEDF0',   // mounting strip
+  screwRim:   '#D1D1D6',   // screw hole border
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -86,7 +86,7 @@ function ScrewHole() {
       borderRadius: 2,
       background: C.chassis,
       border: `1px solid ${C.screwRim}`,
-      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.7)',
+      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)',
       flexShrink: 0,
     }} />
   )
@@ -628,7 +628,7 @@ export default function RackPatchbay() {
             background: C.chassis,
             border: `2px solid ${C.chassis}`,
             borderRadius: 4,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 20px rgba(0,0,0,0.6)`,
+            boxShadow: `0 1px 3px rgba(0,0,0,0.04)`,
             overflow: 'hidden',
             flex: 1,
             display: 'flex',
@@ -703,7 +703,7 @@ export default function RackPatchbay() {
             background: C.chassis,
             border: `2px solid ${C.chassis}`,
             borderRadius: 4,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 20px rgba(0,0,0,0.6)`,
+            boxShadow: `0 1px 3px rgba(0,0,0,0.04)`,
             overflow: 'hidden',
             flex: 1,
             display: 'flex',
@@ -796,7 +796,7 @@ export default function RackPatchbay() {
                   cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: 0,
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                 }}
               >
                 ×

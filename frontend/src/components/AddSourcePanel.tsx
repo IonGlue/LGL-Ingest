@@ -18,20 +18,20 @@ const DEFAULTS: Record<string, Record<string, string>> = {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' },
-  panel: { background: '#1E1E2A', width: 360, height: '100%', padding: '24px', overflowY: 'auto', borderLeft: '1px solid #282838' },
-  title: { fontSize: 18, fontWeight: 700, color: '#EEEEF2', marginBottom: 20 },
-  label: { display: 'block', fontSize: 12, color: '#8E8E9F', marginBottom: 6 },
-  input: { width: '100%', background: '#141418', border: '1px solid #282838', borderRadius: 6, padding: '8px 10px', color: '#EEEEF2', fontSize: 13, marginBottom: 14 },
-  select: { width: '100%', background: '#141418', border: '1px solid #282838', borderRadius: 6, padding: '8px 10px', color: '#EEEEF2', fontSize: 13, marginBottom: 14 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' },
+  panel: { background: '#FFFFFF', width: 360, height: '100%', padding: '24px', overflowY: 'auto', borderLeft: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
+  title: { fontSize: 18, fontWeight: 700, color: '#1A1A2E', marginBottom: 20, fontFamily: 'Syne, sans-serif' },
+  label: { display: 'block', fontSize: 12, color: '#555566', marginBottom: 6, fontWeight: 500 },
+  input: { width: '100%', background: '#FAFAFA', border: '1px solid #E5E5EA', borderRadius: 6, padding: '8px 10px', color: '#1A1A2E', fontSize: 13, marginBottom: 14 },
+  select: { width: '100%', background: '#FAFAFA', border: '1px solid #E5E5EA', borderRadius: 6, padding: '8px 10px', color: '#1A1A2E', fontSize: 13, marginBottom: 14 },
   btn: { background: '#8B5CF6', border: 'none', borderRadius: 6, padding: '9px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8 },
-  cancel: { background: 'transparent', border: '1px solid #282838', borderRadius: 6, padding: '9px 18px', color: '#8E8E9F', cursor: 'pointer' },
+  cancel: { background: 'transparent', border: '1px solid #E5E5EA', borderRadius: 6, padding: '9px 18px', color: '#555566', cursor: 'pointer' },
 }
 
 const ENROLL_COLOR: Record<string, string> = {
   enrolled: '#10B981',
   pending: '#F59E0B',
-  rejected: '#ef4444',
+  rejected: '#EF4444',
 }
 
 export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => void; onAdded: (src: Source) => void }) {
@@ -84,7 +84,7 @@ export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => vo
       <div style={s.panel} onClick={e => e.stopPropagation()}>
         <div style={s.title}>Add Source</div>
         <form onSubmit={submit}>
-          {error && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+          {error && <div style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
           <label style={s.label}>Name</label>
           <input style={s.input} value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Camera 1" />
           <label style={s.label}>Type</label>
@@ -97,7 +97,7 @@ export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => vo
             <div>
               <label style={s.label}>Device (enrolled encoder)</label>
               {devices.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#8E8E9F', marginBottom: 14, padding: '8px 10px', background: '#0f1117', borderRadius: 6, border: '1px solid #2d3348' }}>
+                <div style={{ fontSize: 12, color: '#8E8E9F', marginBottom: 14, padding: '8px 10px', background: '#FAFAFA', borderRadius: 6, border: '1px solid #E5E5EA' }}>
                   No enrolled devices found. Devices appear here after they connect and are enrolled.
                 </div>
               ) : (
@@ -121,8 +121,8 @@ export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => vo
                 <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#8E8E9F', marginBottom: 14 }}>
                   {devices.map(d => (
                     <span key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: d.status === 'online' ? '#10B981' : '#555566', display: 'inline-block' }} />
-                      <span style={{ color: '#8E8E9F' }}>{d.nickname || d.hostname || d.device_id.slice(0, 12)}</span>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: d.status === 'online' ? '#10B981' : '#8E8E9F', display: 'inline-block' }} />
+                      <span style={{ color: '#555566' }}>{d.nickname || d.hostname || d.device_id.slice(0, 12)}</span>
                       <span style={{ color: ENROLL_COLOR[d.enrollment_state] ?? '#8E8E9F' }}>({d.enrollment_state})</span>
                     </span>
                   ))}

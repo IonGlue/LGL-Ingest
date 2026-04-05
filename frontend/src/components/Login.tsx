@@ -2,14 +2,14 @@ import { useState, FormEvent } from 'react'
 import { api } from '../api.js'
 
 const s: Record<string, React.CSSProperties> = {
-  wrap: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f1117' },
-  card: { background: '#1e2130', border: '1px solid #2d3348', borderRadius: 12, padding: '2.5rem', width: 360 },
-  title: { fontSize: 22, fontWeight: 700, marginBottom: 8, color: '#e2e8f0' },
-  sub: { fontSize: 13, color: '#64748b', marginBottom: 28 },
-  label: { display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 6 },
-  input: { width: '100%', background: '#0f1117', border: '1px solid #2d3348', borderRadius: 6, padding: '10px 12px', color: '#e2e8f0', fontSize: 14, outline: 'none', marginBottom: 16 },
-  btn: { width: '100%', background: '#3b82f6', border: 'none', borderRadius: 6, padding: '10px', color: '#fff', fontWeight: 600, fontSize: 15, cursor: 'pointer' },
-  err: { color: '#f87171', fontSize: 13, marginBottom: 16 },
+  wrap: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#FAFAFA' },
+  card: { background: '#FFFFFF', border: '1px solid #E5E5EA', borderRadius: 10, padding: '2.5rem', width: 360, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
+  title: { fontSize: 22, fontWeight: 700, marginBottom: 8, color: '#1A1A2E', fontFamily: 'Syne, sans-serif' },
+  sub: { fontSize: 13, color: '#8E8E9F', marginBottom: 28 },
+  label: { display: 'block', fontSize: 12, color: '#555566', marginBottom: 6, fontWeight: 500 },
+  input: { width: '100%', background: '#FAFAFA', border: '1px solid #E5E5EA', borderRadius: 6, padding: '10px 12px', color: '#1A1A2E', fontSize: 14, outline: 'none', marginBottom: 16 },
+  btn: { width: '100%', background: '#8B5CF6', border: 'none', borderRadius: 6, padding: '10px', color: '#fff', fontWeight: 600, fontSize: 15, cursor: 'pointer' },
+  err: { color: '#EF4444', fontSize: 13, marginBottom: 16 },
 }
 
 export default function Login({ onLogin }: { onLogin: () => void }) {

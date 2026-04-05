@@ -16,7 +16,7 @@ const STATUS_COLOR: Record<string, string> = {
   waiting:     '#F59E0B',
   error:       '#EF4444',
   idle:        '#8E8E9F',
-  placeholder: '#555566',
+  placeholder: '#E5E5EA',
 }
 
 export default function SourceNode({ data }: NodeProps) {
@@ -27,21 +27,22 @@ export default function SourceNode({ data }: NodeProps) {
 
   return (
     <div style={{
-      background: '#1E1E2A',
-      border: `2px solid ${isPlaceholder ? '#282838' : color}`,
+      background: '#FFFFFF',
+      border: `2px solid ${isPlaceholder ? '#E5E5EA' : color}`,
       borderStyle: isPlaceholder ? 'dashed' : 'solid',
       borderRadius: 10,
       padding: '12px 16px',
       minWidth: 200,
       position: 'relative',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <Icon size={16} color={color} />
-        <span style={{ fontWeight: 600, fontSize: 14, color: '#EEEEF2' }}>{src.name}</span>
+        <span style={{ fontWeight: 600, fontSize: 14, color: '#1A1A2E' }}>{src.name}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-        <span style={{ fontSize: 11, color: '#8E8E9F', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: 11, color: '#8E8E9F', textTransform: 'uppercase', fontFamily: "'Courier New', monospace" }}>
           {src.source_type.replace('_', ' ')} · {src.status}
         </span>
       </div>

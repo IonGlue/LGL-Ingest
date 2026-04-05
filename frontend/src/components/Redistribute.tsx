@@ -45,7 +45,7 @@ function maskKey(dest: Destination): string {
 const STATUS_DOT: Record<string, string> = {
   active:  '#10B981',
   waiting: '#F59E0B',
-  error:   '#ef4444',
+  error:   '#EF4444',
   idle:    '#555566',
 }
 
@@ -82,8 +82,8 @@ function SourceCard({ src, connected, selected, onSelect }: {
       style={{
         padding: '12px 14px',
         borderRadius: 8,
-        border: `1.5px solid ${selected ? '#8B5CF6' : connected ? '#1e3a5f' : '#282838'}`,
-        background: selected ? '#0f1d36' : '#1E1E2A',
+        border: `1.5px solid ${selected ? '#8B5CF6' : connected ? 'rgba(139,92,246,0.2)' : '#E5E5EA'}`,
+        background: selected ? 'rgba(139,92,246,0.08)' : '#FFFFFF',
         cursor: 'pointer',
         transition: 'all 0.15s',
         userSelect: 'none',
@@ -93,16 +93,16 @@ function SourceCard({ src, connected, selected, onSelect }: {
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0, display: 'inline-block' }} />
         <SrcIcon size={15} color="#8E8E9F" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, color: '#EEEEF2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {src.name}
           </div>
           <div style={{ fontSize: 11, color: '#8E8E9F', marginTop: 1 }}>
             {src.source_type.replace('_', ' ')}
-            {src.device_id && <span style={{ color: '#282838', marginLeft: 6 }}>↔ {src.device_id.slice(0, 14)}</span>}
+            {src.device_id && <span style={{ color: '#E5E5EA', marginLeft: 6 }}>↔ {src.device_id.slice(0, 14)}</span>}
           </div>
         </div>
         {connected && (
-          <span style={{ fontSize: 10, color: '#8B5CF6', background: '#0f1d36', border: '1px solid #1e3a5f', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: '#8B5CF6', background: 'rgba(139,92,246,0.08)', border: '1px solid #1e3a5f', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>
             routing
           </span>
         )}
@@ -148,8 +148,8 @@ function RedistributeCard({ dest, route, sources, selecting, onConnect, onDiscon
       style={{
         padding: '14px 16px',
         borderRadius: 10,
-        border: `1.5px solid ${selecting ? '#8B5CF6' : isActive ? meta.color + '60' : '#282838'}`,
-        background: selecting ? '#0f1d36' : '#1E1E2A',
+        border: `1.5px solid ${selecting ? '#8B5CF6' : isActive ? meta.color + '60' : '#E5E5EA'}`,
+        background: selecting ? 'rgba(139,92,246,0.08)' : '#FFFFFF',
         cursor: selecting ? 'pointer' : 'default',
         transition: 'border-color 0.15s',
         position: 'relative',
@@ -165,7 +165,7 @@ function RedistributeCard({ dest, route, sources, selecting, onConnect, onDiscon
           {meta.icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#EEEEF2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {dest.name}
           </div>
           <div style={{ fontSize: 11, color: '#8E8E9F' }}>{meta.label}</div>
@@ -178,8 +178,8 @@ function RedistributeCard({ dest, route, sources, selecting, onConnect, onDiscon
       </div>
 
       {/* Stream URL / key */}
-      <div style={{ background: '#141418', borderRadius: 6, padding: '7px 10px', marginBottom: 10 }}>
-        <div style={{ fontSize: 10, color: '#282838', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>
+      <div style={{ background: '#FAFAFA', borderRadius: 6, padding: '7px 10px', marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: '#E5E5EA', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>
           RTMP target
           <button
             onClick={e => { e.stopPropagation(); setShowKeyVisible(v => !v) }}
@@ -199,10 +199,10 @@ function RedistributeCard({ dest, route, sources, selecting, onConnect, onDiscon
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
               flex: 1, display: 'flex', alignItems: 'center', gap: 6,
-              background: '#0f1d36', border: '1px solid #1e3a5f', borderRadius: 6, padding: '6px 10px',
+              background: 'rgba(139,92,246,0.08)', border: '1px solid #1e3a5f', borderRadius: 6, padding: '6px 10px',
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[connectedSource.status] ?? '#555566', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#93c5fd', fontWeight: 600 }}>{connectedSource.name}</span>
+              <span style={{ fontSize: 12, color: '#8B5CF6', fontWeight: 600 }}>{connectedSource.name}</span>
               <span style={{ fontSize: 10, color: '#555566' }}>{connectedSource.source_type.replace('_', ' ')}</span>
             </div>
             <button
@@ -215,8 +215,8 @@ function RedistributeCard({ dest, route, sources, selecting, onConnect, onDiscon
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
-              flex: 1, fontSize: 12, color: '#282838', fontStyle: 'italic',
-              background: '#141418', border: '1px dashed #282838', borderRadius: 6, padding: '6px 10px',
+              flex: 1, fontSize: 12, color: '#E5E5EA', fontStyle: 'italic',
+              background: '#FAFAFA', border: '1px dashed #282838', borderRadius: 6, padding: '6px 10px',
             }}>
               Not connected — select an input source
             </div>
@@ -231,7 +231,7 @@ function RedistributeCard({ dest, route, sources, selecting, onConnect, onDiscon
         ) : (
           <ActionBtn
             label="Start"
-            color={connectedSource ? meta.color : '#282838'}
+            color={connectedSource ? meta.color : '#E5E5EA'}
             onClick={e => { e.stopPropagation(); onStart() }}
             disabled={!connectedSource}
             title={!connectedSource ? 'Connect a source first' : undefined}
@@ -240,8 +240,8 @@ function RedistributeCard({ dest, route, sources, selecting, onConnect, onDiscon
 
         {showDeleteConfirm ? (
           <>
-            <span style={{ fontSize: 11, color: '#f87171', marginLeft: 4 }}>Delete?</span>
-            <ActionBtn label="Yes" color="#ef4444" onClick={e => { e.stopPropagation(); onDelete() }} />
+            <span style={{ fontSize: 11, color: '#EF4444', marginLeft: 4 }}>Delete?</span>
+            <ActionBtn label="Yes" color="#EF4444" onClick={e => { e.stopPropagation(); onDelete() }} />
             <ActionBtn label="No" color="#8E8E9F" onClick={e => { e.stopPropagation(); setShowDeleteConfirm(false) }} />
           </>
         ) : (
@@ -268,9 +268,9 @@ function ActionBtn({ label, color, onClick, disabled, title }: {
       title={title}
       style={{
         background: 'transparent',
-        border: `1px solid ${disabled ? '#282838' : color}`,
+        border: `1px solid ${disabled ? '#E5E5EA' : color}`,
         borderRadius: 5, padding: '4px 10px',
-        fontSize: 11, color: disabled ? '#282838' : color,
+        fontSize: 11, color: disabled ? '#E5E5EA' : color,
         cursor: disabled ? 'default' : 'pointer',
       }}
     >
@@ -356,11 +356,11 @@ export default function Redistribute() {
 
   return (
     <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#141418' }}
+      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#FAFAFA' }}
       onClick={() => selectedSourceId && setSelectedSourceId(null)}
     >
       {/* Stats bar */}
-      <div style={{ padding: '8px 20px', background: '#1E1E2A', borderBottom: '1px solid #282838', display: 'flex', gap: 20, alignItems: 'center' }}>
+      <div style={{ padding: '8px 20px', background: '#FFFFFF', borderBottom: '1px solid #282838', display: 'flex', gap: 20, alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: '#8E8E9F' }}>
           <span style={{ color: '#8E8E9F', fontWeight: 600 }}>{sources.length}</span> sources available
         </span>
@@ -387,8 +387,8 @@ export default function Redistribute() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <div style={{ width: 3, height: 18, background: '#8B5CF6', borderRadius: 2 }} />
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#EEEEF2', textTransform: 'uppercase', letterSpacing: 1 }}>Input Sources</span>
-            <span style={{ fontSize: 11, color: '#555566', background: '#1E1E2A', padding: '1px 7px', borderRadius: 10, border: '1px solid #282838' }}>{sources.length}</span>
+            <span style={{ fontWeight: 700, fontSize: 12, color: '#1A1A2E', textTransform: 'uppercase', letterSpacing: 1 }}>Input Sources</span>
+            <span style={{ fontSize: 11, color: '#555566', background: '#FFFFFF', padding: '1px 7px', borderRadius: 10, border: '1px solid #282838' }}>{sources.length}</span>
           </div>
 
           {sources.length === 0 ? (
@@ -413,13 +413,13 @@ export default function Redistribute() {
             </div>
           )}
 
-          <div style={{ marginTop: 16, padding: '10px 12px', background: '#1E1E2A', borderRadius: 8, border: '1px solid #282838' }}>
+          <div style={{ marginTop: 16, padding: '10px 12px', background: '#FFFFFF', borderRadius: 8, border: '1px solid #282838' }}>
             <div style={{ fontSize: 11, color: '#555566', lineHeight: 1.6 }}>
               <strong style={{ color: '#8E8E9F', display: 'block', marginBottom: 4 }}>How to connect</strong>
               1. Click a source to select it<br />
               2. Click a module on the right to route it<br />
               3. Hit Start on the module to begin streaming<br />
-              <span style={{ color: '#282838' }}>Press Esc to cancel selection</span>
+              <span style={{ color: '#E5E5EA' }}>Press Esc to cancel selection</span>
             </div>
           </div>
         </div>
@@ -427,12 +427,12 @@ export default function Redistribute() {
         {/* Right: Redistribute modules */}
         <div style={{ overflow: 'auto', padding: '20px 20px 20px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{ width: 3, height: 18, background: '#ef4444', borderRadius: 2 }} />
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#EEEEF2', textTransform: 'uppercase', letterSpacing: 1 }}>Redistribute Modules</span>
-            <span style={{ fontSize: 11, color: '#555566', background: '#1E1E2A', padding: '1px 7px', borderRadius: 10, border: '1px solid #282838' }}>{dests.length}</span>
+            <div style={{ width: 3, height: 18, background: '#EF4444', borderRadius: 2 }} />
+            <span style={{ fontWeight: 700, fontSize: 12, color: '#1A1A2E', textTransform: 'uppercase', letterSpacing: 1 }}>Redistribute Modules</span>
+            <span style={{ fontSize: 11, color: '#555566', background: '#FFFFFF', padding: '1px 7px', borderRadius: 10, border: '1px solid #282838' }}>{dests.length}</span>
             <button
               onClick={e => { e.stopPropagation(); setShowAddPanel(true) }}
-              style={{ marginLeft: 'auto', background: '#ef444420', border: '1px solid #ef444460', borderRadius: 5, padding: '4px 12px', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              style={{ marginLeft: 'auto', background: '#EF444420', border: '1px solid #EF444460', borderRadius: 5, padding: '4px 12px', color: '#EF4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
             >
               + Add module
             </button>
@@ -486,7 +486,7 @@ function EmptyState({ title, sub, action }: { title: string; sub: string; action
       {action && (
         <button
           onClick={action.onClick}
-          style={{ marginTop: 16, background: '#1E1E2A', border: '1px solid #282838', borderRadius: 6, padding: '8px 18px', color: '#8E8E9F', fontSize: 12, cursor: 'pointer' }}
+          style={{ marginTop: 16, background: '#FFFFFF', border: '1px solid #282838', borderRadius: 6, padding: '8px 18px', color: '#8E8E9F', fontSize: 12, cursor: 'pointer' }}
         >
           {action.label}
         </button>

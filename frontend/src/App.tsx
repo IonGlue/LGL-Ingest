@@ -9,7 +9,8 @@ type View = 'rack' | 'redistribute'
 const NAV_STYLE: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 0,
   padding: '0 20px', height: 44,
-  background: '#1E1E2A', borderBottom: '1px solid #282838',
+  background: 'rgba(255,255,255,0.85)', borderBottom: '1px solid #E5E5EA',
+  backdropFilter: 'blur(16px)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
 }
 
 function NavBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -20,7 +21,7 @@ function NavBtn({ label, active, onClick }: { label: string; active: boolean; on
         background: 'transparent',
         border: 'none',
         borderBottom: active ? '2px solid #8B5CF6' : '2px solid transparent',
-        color: active ? '#EEEEF2' : '#8E8E9F',
+        color: active ? '#1A1A2E' : '#8E8E9F',
         fontSize: 13,
         fontWeight: active ? 600 : 400,
         padding: '0 14px',
@@ -74,14 +75,14 @@ export default function App() {
     init().finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div style={{ padding: '2rem', color: '#94a3b8' }}>Loading...</div>
+  if (loading) return <div style={{ padding: '2rem', color: '#8E8E9F' }}>Loading...</div>
   if (!authed && localLogin) return <Login onLogin={() => setAuthed(true)} />
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#141418' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#FAFAFA' }}>
       {/* Top nav */}
       <div style={NAV_STYLE}>
-        <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginRight: 16 }}>LGL Ingest</span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E', marginRight: 16, fontFamily: 'Syne, sans-serif' }}>LGL Ingest</span>
         <NavBtn label="Rack" active={view === 'rack'} onClick={() => setView('rack')} />
         <NavBtn label="Redistribute" active={view === 'redistribute'} onClick={() => setView('redistribute')} />
       </div>

@@ -10,15 +10,15 @@ import { useState, FormEvent } from 'react'
 import { api, type Destination } from '../api.js'
 
 const s: Record<string, React.CSSProperties> = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' },
-  panel: { background: '#1a1e2a', width: 400, height: '100%', padding: '28px 24px', overflowY: 'auto', borderLeft: '1px solid #2d3348', display: 'flex', flexDirection: 'column', gap: 0 },
-  title: { fontSize: 17, fontWeight: 700, color: '#e2e8f0', marginBottom: 6 },
-  sub: { fontSize: 12, color: '#64748b', marginBottom: 24 },
-  section: { fontSize: 11, color: '#475569', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginTop: 4 },
-  label: { display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 5 },
-  input: { width: '100%', background: '#0f1117', border: '1px solid #2d3348', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' },
-  btn: { background: '#1d4ed8', border: 'none', borderRadius: 6, padding: '9px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8, fontSize: 13 },
-  cancel: { background: 'transparent', border: '1px solid #2d3348', borderRadius: 6, padding: '9px 18px', color: '#94a3b8', cursor: 'pointer', fontSize: 13 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' },
+  panel: { background: '#FFFFFF', width: 400, height: '100%', padding: '28px 24px', overflowY: 'auto', borderLeft: '1px solid #E5E5EA', display: 'flex', flexDirection: 'column', gap: 0 },
+  title: { fontSize: 17, fontWeight: 700, color: '#1A1A2E', marginBottom: 6, fontFamily: 'Syne, sans-serif' },
+  sub: { fontSize: 12, color: '#8E8E9F', marginBottom: 24 },
+  section: { fontSize: 11, color: '#555566', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginTop: 4 },
+  label: { display: 'block', fontSize: 12, color: '#555566', marginBottom: 5, fontWeight: 500 },
+  input: { width: '100%', background: '#FAFAFA', border: '1px solid #E5E5EA', borderRadius: 6, padding: '8px 10px', color: '#1A1A2E', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' },
+  btn: { background: '#8B5CF6', border: 'none', borderRadius: 6, padding: '9px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8, fontSize: 13 },
+  cancel: { background: 'transparent', border: '1px solid #E5E5EA', borderRadius: 6, padding: '9px 18px', color: '#555566', cursor: 'pointer', fontSize: 13 },
 }
 
 // Known platforms with base ingest URLs and stream key help text
@@ -68,9 +68,9 @@ function PlatformButton({ platform, selected, onClick }: {
       onClick={onClick}
       style={{
         flex: 1, padding: '10px 8px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-        background: selected ? platform.color + '22' : '#0f1117',
-        border: `1.5px solid ${selected ? platform.color : '#2d3348'}`,
-        color: selected ? platform.color : '#64748b',
+        background: selected ? platform.color + '22' : '#FAFAFA',
+        border: `1.5px solid ${selected ? platform.color : '#E5E5EA'}`,
+        color: selected ? platform.color : '#555566',
         transition: 'all 0.15s',
       }}
     >
@@ -174,14 +174,14 @@ export default function AddRedistributePanel({
             <>
               <label style={s.label}>Ingest URL</label>
               <input
-                style={{ ...s.input, color: '#475569' }}
+                style={{ ...s.input, color: '#8E8E9F' }}
                 value={baseUrl}
                 onChange={e => setBaseUrl(e.target.value)}
               />
 
               <label style={s.label} title={platform.keyHelp}>
                 Stream key
-                <span style={{ color: '#475569', fontWeight: 400, marginLeft: 6 }}>{platform.keyHelp}</span>
+                <span style={{ color: '#8E8E9F', fontWeight: 400, marginLeft: 6 }}>{platform.keyHelp}</span>
               </label>
               <div style={{ position: 'relative', marginBottom: 14 }}>
                 <input
@@ -196,7 +196,7 @@ export default function AddRedistributePanel({
                 <button
                   type="button"
                   onClick={() => setShowKey(v => !v)}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 11, padding: '2px 4px' }}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#555566', cursor: 'pointer', fontSize: 11, padding: '2px 4px' }}
                 >
                   {showKey ? 'hide' : 'show'}
                 </button>
@@ -206,9 +206,9 @@ export default function AddRedistributePanel({
 
           {/* Preview */}
           {fullUrl && fullUrl !== platform.baseUrl && (
-            <div style={{ background: '#0f1117', border: '1px solid #2d3348', borderRadius: 6, padding: '8px 10px', marginBottom: 16 }}>
-              <div style={{ fontSize: 10, color: '#475569', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 1 }}>Full RTMP URL</div>
-              <code style={{ fontSize: 11, color: '#64748b', wordBreak: 'break-all' }}>
+            <div style={{ background: '#FAFAFA', border: '1px solid #E5E5EA', borderRadius: 6, padding: '8px 10px', marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: '#8E8E9F', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 1 }}>Full RTMP URL</div>
+              <code style={{ fontSize: 11, color: '#555566', wordBreak: 'break-all' }}>
                 {platformId !== 'custom' && streamKey
                   ? baseUrl + streamKey.slice(0, 4) + '••••••••••••' + streamKey.slice(-4)
                   : fullUrl}
@@ -216,7 +216,7 @@ export default function AddRedistributePanel({
             </div>
           )}
 
-          {error && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+          {error && <div style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
 
           <div style={{ marginTop: 8, display: 'flex', alignItems: 'center' }}>
             <button style={s.btn} type="submit" disabled={busy}>{busy ? 'Creating...' : 'Create module'}</button>
