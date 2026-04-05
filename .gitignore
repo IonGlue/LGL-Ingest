@@ -6,3 +6,4 @@ config/ingest.toml
 /tmp/ingest-*.json
 config/cloudflared/
 logs/
+.claude/settings.local.json
