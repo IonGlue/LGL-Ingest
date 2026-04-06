@@ -23,16 +23,16 @@ async fn main() -> Result<()> {
     let config = Config::load(&config_path)
         .with_context(|| format!("failed to load config: {config_path}"))?;
 
-    log::info!("LGL Ingest supervisor starting");
-    log::info!("  supervisor API: 127.0.0.1:{}", config.supervisor.api_port);
-    log::info!("  internal port range: {}-{}",
-        config.supervisor.internal_port_start,
-        config.supervisor.internal_port_end);
+    let listen_addr = config.listen_addr();
+    let (port_start, port_end) = config.port_range();
 
-    let port_pool = Arc::new(RwLock::new(PortPool::new(
-        config.supervisor.internal_port_start,
-        config.supervisor.internal_port_end,
-    )));
+    log::info!("LGL Ingest supervisor starting");
+    log::info!("  supervisor API: {listen_addr}");
+    log::info!("  internal port range: {port_start}-{port_end}");
+    log::info!("  storage: recordings={}, hls={}, tmp={}",
+        config.storage.recordings, config.storage.hls, config.storage.tmp);
+
+    let port_pool = Arc::new(RwLock::new(PortPool::new(port_start, port_end)));
 
     let routing = Arc::new(RwLock::new(RoutingTable::new()));
 
@@ -52,9 +52,8 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Start the local REST API
-    let api_addr = format!("127.0.0.1:{}", config.supervisor.api_port);
-    log::info!("starting supervisor API on {api_addr}");
+    // Start the REST API
+    log::info!("starting supervisor API on {listen_addr}");
 
-    api::serve(api_addr, supervisor, routing, port_pool).await
+    api::serve(listen_addr, supervisor, routing, port_pool).await
 }

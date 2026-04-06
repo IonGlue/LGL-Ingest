@@ -42,4 +42,4 @@ COPY ingest-supervisor/config.toml /etc/ingest-supervisor/config.toml
 
 EXPOSE 9000
 
-CMD ["ingest-supervisor", "--config", "/etc/ingest-supervisor/config.toml"]
+CMD ["ingest-supervisor", "/etc/ingest-supervisor/config.toml"]
